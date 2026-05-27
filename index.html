@@ -1,0 +1,1993 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Analizador XML · Amazonía</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  /* ── TEMA OSCURO (predeterminado) ────────────────────────────────────────── */
+  :root {
+    --bg:      #0d0f14;
+    --surface: #13161e;
+    --panel:   #1a1e2a;
+    --border:  #252a38;
+    --accent:  #3b82f6;
+    --accent2: #06b6d4;
+    --ok:      #22c55e;
+    --warn:    #ef4444;
+    --text:    #e2e8f0;
+    --muted:   #64748b;
+    --mono:    'JetBrains Mono', monospace;
+    --sans:    'Syne', sans-serif;
+    --fs: 14px;
+    --theme-icon: '\263D'; /* luna — no se usa directamente, referencia visual */
+  }
+
+  /* ── TEMA CLARO ────────────────────────────────────────────────────────────
+     Se activa agregando la clase .theme-light al elemento <html>.
+     Sobreescribe únicamente las variables de color; todo lo demás (layout,
+     tipografía, tama&#241;os) permanece igual, garantizando coherencia visual. */
+  html.theme-light {
+    --bg:      #f0f4f8;
+    --surface: #ffffff;
+    --panel:   #e8edf3;
+    --border:  #cbd5e1;
+    --accent:  #2563eb;
+    --accent2: #0891b2;
+    --ok:      #16a34a;
+    --warn:    #dc2626;
+    --text:    #1e293b;
+    --muted:   #64748b;
+  }
+
+  html { font-size: var(--fs); height: 100%; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .logo {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 800; color: #fff; flex-shrink: 0;
+  }
+  header h1 { font-size: 1.15rem; font-weight: 800; letter-spacing: -.02em; }
+  header span { font-size: .75rem; color: var(--muted); font-family: var(--mono); }
+
+  /* ── CONTROLES DE CABECERA (FUENTE + TEMA) ─────────────────────────────── */
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+  }
+  .font-size-ctrl {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 6px 14px;
+    transition: border-color .2s;
+  }
+  .font-size-ctrl:hover { border-color: var(--accent); }
+
+  /* Botón de cambio de tema (oscuro ↔ claro) */
+  .theme-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: .72rem;
+    color: var(--muted);
+    transition: all .2s;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .theme-btn:hover { border-color: var(--accent); color: var(--text); }
+  .theme-btn .theme-icon { font-size: .9rem; line-height: 1; }
+  .theme-btn .theme-label { letter-spacing: .04em; }
+
+  /* EN TEMAS OSCUROS */
+  /* Filas observadas en MODO OSCURO */
+  html:not(.theme-light) .summary-table tr.row-obs td {
+    background: rgba(239, 68, 68, 0.18) !important; /* Subimos la opacidad al 18% */
+    color: #fca5a5; /* Un texto rojo pastel para que contraste con el fondo oscuro */
+  }
+
+  /* Opcional: Un pequeño borde a la izquierda para que sea imposible no verla */
+  html:not(.theme-light) .summary-table tr.row-obs td:first-child {
+    border-left: 3px solid var(--warn);
+  }
+
+  /* En tema claro, ajustes de contraste para elementos que usan rgba fijos */
+  html.theme-light .summary-table td { border-bottom-color: rgba(0,0,0,.08); }
+  html.theme-light tbody tr:hover td,
+  html.theme-light .summary-table tbody tr:hover td { background: rgba(37,99,235,.06); }
+  html.theme-light .items-table tbody tr:hover td   { background: rgba(37,99,235,.06); }
+  html.theme-light .summary-table tr.row-obs td     { background: rgba(220,38,38,.06); }
+  html.theme-light .inv-header                       { background: var(--panel); }
+  html.theme-light #console                          { background: var(--panel); }
+  html.theme-light .dropzone:hover,
+  html.theme-light .dropzone.drag                    { background: rgba(37,99,235,.06); }
+  html.theme-light .tab.active                       { background: var(--bg); border-color: var(--border); }
+  html.theme-light ::-webkit-scrollbar-thumb         { background: #b0bec5; }
+  .fsc-label {
+    font-family: var(--mono);
+    color: var(--muted);
+    font-size: .72rem;
+    user-select: none;
+    line-height: 1;
+  }
+  .fsc-big { font-size: 1rem; }
+  .fsc-pct {
+    font-family: var(--mono);
+    font-size: .62rem;
+    color: var(--accent2);
+    min-width: 32px;
+    text-align: right;
+  }
+  #font-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 90px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 99px;
+    outline: none;
+    cursor: pointer;
+  }
+  #font-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    transition: background .15s;
+  }
+  #font-slider::-webkit-slider-thumb:hover { background: var(--accent2); }
+  #font-slider::-moz-range-thumb {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: none;
+  }
+
+  /* APP LAYOUT */
+  .app { display: flex; flex: 1; overflow: hidden; }
+
+  /* SIDEBAR */
+  aside {
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    overflow-y: auto;
+  }
+  .section-label {
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  /* Dropzone */
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 10px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+  }
+  .dropzone:hover, .dropzone.drag { border-color: var(--accent); background: rgba(59,130,246,.06); }
+  .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .dropzone .icon { font-size: 1.6rem; margin-bottom: 6px; }
+  .dropzone p { font-size: .76rem; color: var(--muted); line-height: 1.5; }
+  .dropzone strong { color: var(--text); display: block; font-size: .83rem; margin-bottom: 3px; }
+  #file-count { font-family: var(--mono); font-size: .7rem; color: var(--accent2); margin-top: 6px; min-height: 16px; }
+
+  /* Stats */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-card { background: var(--panel); border: 1px solid var(--border); border-radius: 9px; padding: 12px; }
+  .stat-card .val { font-family: var(--mono); font-size: 1.3rem; font-weight: 700; line-height: 1; margin-bottom: 3px; }
+  .stat-card .lbl { font-size: .62rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .stat-card.ok .val  { color: var(--ok); }
+  .stat-card.err .val { color: var(--warn); }
+  .stat-card.info .val { color: var(--accent2); }
+  .stat-card.total .val { color: var(--accent); }
+  .stat-card.fatal { 
+  grid-column: 1 / -1; /* Hace que ocupe las dos columnas */
+  border-color: rgba(239,68,68,.3); /* Un borde rojo sutil */
+  background: rgba(239,68,68,.05); /* Fondo rojizo suave */
+  }
+  .stat-card.fatal .val { color: var(--warn); }
+
+  /* Buttons */
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    border: none; border-radius: 9px; cursor: pointer;
+    font-family: var(--sans); font-weight: 600; font-size: .85rem;
+    padding: 11px 16px; width: 100%; transition: all .15s;
+  }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+  .btn-primary:hover { opacity: .88; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--text); }
+  .btn-outline:disabled { opacity: .3; cursor: not-allowed; }
+
+  /* Console */
+  .console-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  #console {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 9px;
+    padding: 12px; overflow-y: auto; font-family: var(--mono);
+    font-size: .68rem; line-height: 1.7; color: var(--muted);
+    min-height: 100px; max-height: 180px;
+  }
+  #console .line-ok   { color: var(--ok); }
+  #console .line-err  { color: var(--warn); }
+  #console .line-info { color: var(--accent2); }
+  #console .line-done { color: var(--accent); font-weight: 700; }
+
+  /* Progress */
+  #progress-wrap { display: none; }
+  #progress-bar-bg { height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  #progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .1s; border-radius: 99px; }
+  #progress-label { font-family: var(--mono); font-size: .6rem; color: var(--muted); text-align: right; margin-top: 4px; }
+
+  /* ── MAIN AREA ── */
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  /* Empty state */
+  #empty {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    color: var(--muted); gap: 12px; text-align: center;
+  }
+  #empty .big { font-size: 3rem; opacity: .15; }
+  #empty p { font-size: .82rem; }
+
+  /* ── TAB BAR ── */
+  #tab-area {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    position: relative; /* necesario para que .tab-content.active con inset:0 funcione */
+  }
+
+  .tab-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    padding: 12px 20px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    overflow-x: auto;
+    flex-shrink: 0;
+  }
+  .tab-bar::-webkit-scrollbar { height: 6px; }
+  .tab-bar::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 99px; }
+  .tab-bar::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  .tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 8px 8px 0 0;
+    border: 1px solid transparent;
+    border-bottom: none;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: .68rem;
+    color: var(--muted);
+    background: transparent;
+    white-space: nowrap;
+    transition: all .15s;
+    position: relative;
+    bottom: -1px;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tab:hover { color: var(--text); background: var(--panel); }
+  .tab.active {
+    color: var(--text);
+    background: var(--bg);
+    border-color: var(--border);
+    border-bottom-color: var(--bg);
+  }
+  .tab .tab-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  }
+  .tab-dot.ok  { background: var(--ok); }
+  .tab-dot.obs { background: var(--warn); }
+
+  /* Tab "All" summary */
+  .tab-all { border-color: var(--accent2) !important; color: var(--accent2) !important; }
+  .tab-all.active { border-bottom-color: var(--bg) !important; }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     TAB CONTENT — arquitectura de scroll
+     ══════════════════════════════════════════════════════════════════════════
+     Para que overflow-y:auto funcione en un contexto flex, TODOS los
+     ancestros deben tener una altura definida (no "auto").
+     La cadena es:  html(100%) → body(100vh) → .app(flex:1) →
+                    main(flex:1) → #tab-area(flex:1) →
+                    #tab-contents(flex:1) → .tab-content.active(flex:1, overflow-y:auto)
+     min-height:0 en cada nivel flex es obligatorio para que el hijo
+     pueda contraerse por debajo de su contenido natural.
+  ══════════════════════════════════════════════════════════════════════════ */
+
+  /* Contenedor de todos los tab-content: position:relative lo hace contexto
+     de posicionamiento para los hijos absolute; overflow:hidden los recorta */
+  #tab-contents {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Pestaña oculta */
+  .tab-content { display: none; }
+
+  /* Pestaña activa — fichas individuales
+     position:absolute + inset:0 hace que ocupe exactamente #tab-contents
+     sin depender de la cadena flex. overflow:auto habilita AMBOS scrolls. */
+  .tab-content.active {
+    display: block;
+    position: absolute;
+    inset: 0;
+    overflow: auto;   /* scroll vertical Y horizontal ambos habilitados */
+    padding: 24px 28px;
+  }
+
+  /* Pestaña Resumen — el scroll lo gestiona .summary-table-wrap internamente
+     para que position:sticky del thead funcione correctamente */
+  #tab-all.tab-content.active {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Wrapper de la tabla resumen: ocupa todo y scrollea */
+  .summary-table-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Pie de página del resumen (fuera del scroll) */
+  .summary-footer {
+    flex-shrink: 0;
+    font-family: var(--mono);
+    font-size: .65rem;
+    color: var(--muted);
+    padding: 8px 24px;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  /* ── INVOICE CARD ── */
+  .invoice-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  /* Invoice header band */
+  .inv-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    background: var(--panel);
+  }
+  .inv-header .doc-id {
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: .02em;
+  }
+  .inv-header .doc-type {
+    font-family: var(--mono);
+    font-size: .65rem;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+  .inv-header .dictamen-badge {
+    padding: 5px 12px;
+    border-radius: 99px;
+    font-family: var(--mono);
+    font-size: .68rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .dictamen-badge.ok  { background: rgba(34,197,94,.15); color: var(--ok); border: 1px solid rgba(34,197,94,.3); }
+  .dictamen-badge.obs { background: rgba(239,68,68,.15); color: var(--warn); border: 1px solid rgba(239,68,68,.3); }
+
+  /* Sections */
+  .inv-section { padding: 18px 24px; border-bottom: 1px solid var(--border); }
+  .inv-section:last-child { border-bottom: none; }
+  .inv-section-title {
+    font-family: var(--mono);
+    font-size: .6rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent2);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .inv-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* Field grid */
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  .field-grid.cols-1 { grid-template-columns: 1fr; }
+
+  .field-row {
+    display: contents;
+  }
+  .field-label {
+    padding: 7px 12px 7px 0;
+    font-family: var(--mono);
+    font-size: .78rem;    /* escala con --fs del slider */
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    border-bottom: 1px solid rgba(37,42,56,.5);
+  }
+  .field-value {
+    padding: 7px 0 7px 12px;
+    font-family: var(--mono);
+    font-size: .85rem;    /* escala con --fs del slider */
+    color: var(--text);
+    border-bottom: 1px solid rgba(37,42,56,.5);
+    word-break: break-word;
+  }
+  .field-value.highlight { color: var(--accent); font-weight: 700; }
+  .field-value.warn-val  { color: var(--warn); }
+  .field-value.ok-val    { color: var(--ok); }
+  .field-value.dim       { color: var(--muted); }
+
+  /* ITEMS TABLE */
+  .items-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: .82rem;    /* escala con slider */
+  }
+  .items-table thead tr { background: var(--panel); }
+  .items-table th {
+    padding: 9px 12px;
+    text-align: left;
+    font-size: .72rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+  }
+  .items-table th:nth-child(n+3) { text-align: right; }
+  .items-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(37,42,56,.4);
+    color: var(--text);
+    vertical-align: top;
+  }
+  .items-table td:nth-child(n+3) { text-align: right; }
+  .items-table tr:last-child td { border-bottom: none; }
+  .items-table tbody tr:hover td { background: rgba(59,130,246,.04); }
+  .items-table .n-col { color: var(--muted); width: 36px; }
+  .items-table .desc-col { white-space: normal; max-width: 260px; line-height: 1.4; }
+
+  /* Totals band */
+  .totals-band {
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 28px;
+    font-family: var(--mono);
+    font-size: .72rem;
+  }
+  .total-item { text-align: right; }
+  .total-item .t-label { color: var(--muted); font-size: .62rem; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .total-item .t-value { color: var(--text); font-weight: 700; font-size: .85rem; }
+  .total-item.grand .t-value { color: var(--accent); font-size: 1rem; }
+
+  /* Summary table (All tab) */
+  /* .summary-table-wrap se define en la sección TAB CONTENT */
+  .summary-table { border-collapse: collapse; width: 100%; font-family: var(--mono); font-size: .7rem; white-space: nowrap; }
+  .summary-table thead { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 2px solid var(--accent); }
+  .summary-table th { padding: 10px 12px; text-align: left; font-size: .6rem; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .summary-table td { padding: 9px 12px; border-bottom: 1px solid rgba(37,42,56,.5); color: var(--text); }
+  .summary-table tr:last-child td { border-bottom: none; }
+  .summary-table tbody tr:hover td { background: rgba(59,130,246,.04); }
+  .summary-table tr.row-obs td { background: rgba(239,68,68,.04); }
+  .summary-table tr.row-obs td:last-child { color: var(--warn); }
+  .summary-table tr.row-ok  td:last-child { color: var(--ok); }
+
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 5px; font-size: .6rem; font-weight: 700; letter-spacing: .04em; }
+  .badge-fac { background: rgba(59,130,246,.15); color: var(--accent); }
+  .badge-bol { background: rgba(6,182,212,.15); color: var(--accent2); }
+  .badge-rhn { background: rgba(168,85,247,.15); color: #a855f7; }
+  .badge-sol { background: rgba(34,197,94,.12); color: var(--ok); }
+  .badge-usd { background: rgba(234,179,8,.12); color: #eab308; }
+  .badge-amz { background: rgba(249,115,22,.12); color: #f97316; font-size:.56rem; white-space:normal; line-height:1.2; }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+  .tab-bar::-webkit-scrollbar { height: 6px; }
+  .tab-bar::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 99px; }
+  .tab-bar::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  .tab-counter {
+    background: var(--border); color: var(--muted);
+    font-size: .55rem; padding: 1px 5px; border-radius: 99px; font-weight: 700;
+  }
+  .tab.active .tab-counter { background: var(--accent); color: #fff; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">X</div>
+  <div>
+    <h1>ANALIZADOR XML <span>&middot; Comercio Amazon&#237;a / Transportes Amazon&#237;a</span></h1>
+  </div>
+  <!-- Controles del encabezado: tama&#241;o de texto y selector de tema -->
+  <div class="header-controls">
+
+    <!-- Control de tama&#241;o: modifica --fs en html → todos los rem escalan -->
+    <div class="font-size-ctrl" title="Ajustar tama&#241;o de texto">
+      <span class="fsc-label" title="Texto más peque&#241;o">A</span>
+      <input type="range" id="font-slider" min="80" max="130" value="100" step="5"
+             oninput="applyFontScale(this.value)"/>
+      <span class="fsc-label fsc-big" title="Texto más grande">A</span>
+      <span class="fsc-pct" id="font-pct">100%</span>
+    </div>
+
+    <!-- Botón de tema: alterna clase .theme-light en <html> y persiste en localStorage -->
+    <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema">
+      <span class="theme-icon" id="theme-icon">🌙</span>
+      <span class="theme-label" id="theme-label">OSCURO</span>
+    </button>
+
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside>
+    <div>
+      <p class="section-label">Cargar XMLs</p>
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="file-input" multiple accept=".xml"/>
+        <div class="icon">📂</div>
+        <strong>Seleccionar archivos XML</strong>
+        <p>o arrastra y suelta aquí<br/>XML de Facturas electr&#243;nicas SUNAT</p>
+        <div id="file-count"></div>
+      </div>
+    </div>
+
+    <div>
+      <p class="section-label">Resumen</p>
+      <div class="stats-grid">
+        <div class="stat-card total"><div class="val" id="s-total">0</div><div class="lbl">Total</div></div>
+        <div class="stat-card ok">  <div class="val" id="s-ok">0</div>   <div class="lbl">OK</div></div>
+        <div class="stat-card err"> <div class="val" id="s-obs">0</div>  <div class="lbl">Observados</div></div>
+        <div class="stat-card info"><div class="val" id="s-amz">0</div>  <div class="lbl">Amazon&#237;a</div></div>
+        <div class="stat-card fatal"><div class="val" id="s-err">0</div>  <div class="lbl">Erróneos (No leídos)</div></div>
+      </div>
+    </div>
+
+    <div id="progress-wrap">
+      <p class="section-label">Progreso</p>
+      <div id="progress-bar-bg"><div id="progress-bar"></div></div>
+      <div id="progress-label">0 / 0</div>
+    </div>
+
+    <div>
+      <p class="section-label">Acciones</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-primary" id="btn-analyze" disabled onclick="analyze()">▶ ANALIZAR</button>
+        <button class="btn btn-outline" id="btn-export"  disabled onclick="exportExcel()">&#8595; Exportar Excel</button>
+        <button class="btn btn-outline" onclick="clearAll()">✕ Limpiar</button>
+      </div>
+    </div>
+
+    <div class="console-wrap">
+      <p class="section-label">Consola</p>
+      <div id="console"><span class="line-info">Sistema listo. Cargue archivos XML para comenzar.</span><br/></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+    <div id="empty">
+      <div class="big">🗂️</div>
+      <p>Cargue archivos XML y presione <strong>ANALIZAR</strong><br/>para ver las fichas de factura aqu&#237;.</p>
+    </div>
+
+    <div id="tab-area">
+      <!-- Tab bar (built dynamically) -->
+      <div class="tab-bar" id="tab-bar"></div>
+      <!-- Tab contents (built dynamically) -->
+      <div id="tab-contents"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ─── FLOTAS VEHICULARES POR EMPRESA ──────────────────────────────────────────
+// Se manejan dos flotas independientes, una por cada empresa del grupo.
+// La validación cruzada detecta si una placa aparece en una factura equivocada.
+// Se usa Set en vez de Array para búsquedas O(1) eficientes.
+//
+// RUC Transportes Amazonía : 20605377018
+// RUC Comercio Amazonía    : 20603964153
+
+/** Placas registradas a nombre de TRANSPORTES AMAZONÍA S.A. (RUC 20605377018) */
+const FLOTA_TRANSPORTES = new Set([
+  "A4K993","A4K994","A4K995","A4K996","A4L974","A4L975","A4L976","A4L977","A4L978","A4L982",
+  "A6C995","A7K949","A7M847","A7M848","A7M853","A7M855","A7M856","A7M857","A7N810",
+  "A7N811","A7Q885","A8K989","A8K990","B3C862","B6K991","B7C837","B7C839","B7C841","B7C842",
+  "B9E996","B9E997","B9E998","B9E999","B9F976","B9G978","BRL891","BTD902","BWC686","C1C863",
+  "C1C864","C1C865","C1C877","C1D806","C1D811","C1D872","C1D892","C1D909","C1F832","C1F873",
+  "C1H905","C8W807","D0G988","D4O927","D4P832","D4P867","D4P879","D4R870","D4R894","D4S803",
+  "D4S804","D4S837","D4S862","F1U808","F1U810","F1U811","F2R990","F2R991","F2R992","F2R993",
+  "F2R994","F2R995","M1L904","M2K705","T3N999","T3O971","T3O974","T3O995","T3T994","T3U985",
+  "T4G991","T4X985","T4X986","T4X988","T4X989","T4X995","T4X998","T4Y971","T4Y972","T5D978",
+  "T5D979","T5D988","T5G985","T5J998","T5J999","T6G992","T6G996","T7F999","TAY977","TAY979",
+  "TAY980","TAY982","TAY983","TAY985","TAY988","TAY989","TAY990","TAY991","TAY993","TAY997",
+  "TAY998","TAY999","TBG848","TFH996","TFI972","TFI983"
+]);
+
+/** Placas registradas a nombre de COMERCIO AMAZONÍA S.A. (RUC 20603964153) */
+const FLOTA_COMERCIO = new Set([
+  "A9A811","A9A848","F8A222","C2F852","C2F853","C2F935","C2F936","C2F937","C2F938","C2F939",
+  "C2G817","C2G881","C2G883","D4K938","D4L806","D4L821","D4L825","D4Y915","D5A903","D5B821",
+  "D5B842","D5C846","D5D829","A6N815","AMF353","AXK826","AXL828","B2Y942","BMY771","M6L433",
+  "S2D857","8013IK","6400KM","08626K","08666K","08706K","08786K","08886K","16924K","32348K",
+  "4165GK","4200GK","4474SM","4476SM","52733M","9819ZM","M80669","MB3350","S52621","S53812",
+  "S73179","M4I899",
+  "MEMT0675","B4P763","CLM917","MEMT8807"
+]);
+
+/** Unión de ambas flotas: para verificar si una placa pertenece a alguna empresa */
+const FLOTA_TOTAL = new Set([...FLOTA_TRANSPORTES, ...FLOTA_COMERCIO]);
+
+/**
+ * getRUCEmpresa
+ * Devuelve el RUC de la empresa propietaria de la placa, o null si es desconocida.
+ * @param {string} placa - Placa normalizada (sin guiones, mayúsculas)
+ * @returns {'20605377018'|'20603964153'|null}
+ */
+function getRUCEmpresa(placa) {
+  if (FLOTA_TRANSPORTES.has(placa)) return '20605377018'; // Transportes Amazonía
+  if (FLOTA_COMERCIO.has(placa))    return '20603964153'; // Comercio Amazonía
+  return null;
+}
+
+// ─── NAMESPACES UBL SUNAT ─────────────────────────────────────────────────────
+// Los XML de SUNAT usan el estándar UBL 2.1 con dos namespaces principales:
+//   cac → CommonAggregateComponents: elementos compuestos (Party, TaxTotal, etc.)
+//   cbc → CommonBasicComponents:     elementos simples   (ID, Amount, Date, etc.)
+// Se usan en xText() para filtrar nodos por namespace además de por nombre local.
+const NS = {
+  cac: 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+  cbc: 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+};
+
+// ─── ESTADO GLOBAL DE LA APLICACIÓN ──────────────────────────────────────────
+// xmlFiles → array de objetos File con los XMLs cargados por el usuario.
+//            Se llena al seleccionar/soltar archivos; se vacía con clearAll().
+// results  → array de objetos devueltos por parseXML(), uno por documento.
+//            Cada elemento tiene todos los campos extraídos del XML.
+let xmlFiles = [];
+let results  = [];
+let errorCount = 0; // <--- NUEVA VARIABLE
+
+// ─── HELPERS: DOM Y UTILIDADES ────────────────────────────────────────────────
+
+/** Atajo para document.getElementById */
+const $ = id => document.getElementById(id);
+
+/**
+ * log
+ * Agrega una línea de texto a la consola visual del sidebar.
+ * @param {string} msg  - Mensaje a mostrar
+ * @param {string} type - Clase CSS: 'ok' | 'err' | 'info' | 'done' | ''
+ */
+function log(msg, type = '') {
+  const div  = $('console');
+  const span = document.createElement('span');
+  if (type) span.className = 'line-' + type;
+  span.textContent = msg;
+  div.appendChild(span);
+  div.appendChild(document.createElement('br'));
+  div.scrollTop = div.scrollHeight;
+}
+
+/**
+ * setProgress
+ * Actualiza la barra de progreso y el contador de archivos procesados.
+ */
+function setProgress(done, total) {
+  $('progress-bar').style.width = (done / total * 100) + '%';
+  $('progress-label').textContent = `${done} / ${total} archivos`;
+}
+
+/**
+ * esc
+ * Escapa caracteres HTML especiales para insertar texto en innerHTML de forma segura.
+ * Evita XSS si los datos del XML contienen <, >, &, ".
+ */
+function esc(s) {
+  /*return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+    */
+    if (!s) return '';
+    // Creamos un elemento temporal para que el navegador decodifique 
+    // cualquier entidad HTML (como &amp;) automáticamente a su símbolo real (&)
+    const doc = new DOMParser().parseFromString(s, 'text/html');
+    return doc.documentElement.textContent; 
+    }
+
+/**
+ * fmt
+ * Formatea un número con 2 decimales. Si es falsy devuelve '0.00'.
+ */
+function fmt(n) { return n ? Number(n).toFixed(2) : '0.00'; }
+
+/**
+ * v  (field value)
+ * Genera el HTML de un campo de valor en la ficha de factura.
+ * Si el valor está vacío muestra '—' con clase 'dim' (gris).
+ * @param {string} val - Valor a mostrar
+ * @param {string} cls - Clase CSS adicional: 'highlight' | 'warn-val' | 'ok-val' | 'dim'
+ */
+/*
+function v(val, cls = '') {
+  const display  = (val === '' || val === null || val === undefined) ? '—' : esc(val);
+  const dimClass = (display === '—') ? 'dim' : cls;
+  return `<div class="field-value ${dimClass}">${display}</div>`;
+}
+  */
+ function v(val, cls = '') {
+  const display  = (val === '' || val === null || val === undefined) ? '—' : val;
+  const dimClass = (display === '—') ? 'dim' : cls;
+  // Usamos esc() solo para limpiar etiquetas peligrosas, pero manteniendo símbolos
+  return `<div class="field-value ${dimClass}">${display}</div>`;
+}
+
+
+// ─── HELPERS: NAVEGACIÓN DEL DOM XML ─────────────────────────────────────────
+
+/**
+ * findAllByLocal
+ * Recorre recursivamente todos los descendientes de `root` y devuelve
+ * aquellos cuyo localName (nombre sin prefijo de namespace) sea `localName`.
+ * Útil porque los XML SUNAT mezclan namespaces y esta función los ignora.
+ *
+ * @param {Element} root       - Nodo raíz desde donde buscar
+ * @param {string}  localName  - Nombre local del elemento (sin prefijo ns)
+ * @returns {Element[]}        - Array con todos los elementos encontrados
+ */
+function findAllByLocal(root, localName) {
+  const result = [];
+  const walk = node => {
+    for (const c of node.children) {
+      if (c.localName === localName) result.push(c);
+      walk(c);
+    }
+  };
+  walk(root);
+  return result;
+}
+
+/**
+ * xText
+ * Navega un path de la forma "cac:Parent/cbc:Child/cbc:Leaf" respetando
+ * los namespaces definidos en el objeto NS global, y devuelve el textContent
+ * del nodo hoja encontrado, o `fallback` si no existe.
+ *
+ * Solo busca hijos directos en cada nivel (no desciende arbitrariamente),
+ * lo que lo hace preciso para rutas conocidas del esquema UBL.
+ *
+ * @param {Element} root     - Nodo raíz (generalmente documentElement)
+ * @param {string}  path     - Ruta separada por "/" con prefijos ns opcionales
+ * @param {string}  fallback - Valor retornado si el nodo no existe (default: '')
+ * @returns {string}
+ */
+function xText(root, localPath, fallback = '') {
+  const parts = localPath.split('/');
+  let nodes = [root];
+  for (const part of parts) {
+    const [pfx, local] = part.includes(':') ? part.split(':') : ['', part];
+    const nsUri = pfx ? NS[pfx] : null;
+    const next = [];
+    for (const n of nodes) {
+      for (const k of n.children) {
+        const kLocal = k.localName;
+        const kNs    = k.namespaceURI;
+        if (kLocal === local && (!nsUri || kNs === nsUri)) next.push(k);
+      }
+    }
+    nodes = next;
+    if (!nodes.length) return fallback;
+  }
+  return nodes[0]?.textContent?.trim() || fallback;
+}
+
+/**
+ * cleanPlaca
+ * Normaliza una cadena de placa vehicular:
+ *   1. Convierte a mayúsculas.
+ *   2. Elimina el prefijo "PLACA:", "PLACA :", "PLACA " si está presente
+ *      (algunos emisores incluyen la etiqueta textual antes del valor).
+ *      Ejemplos: "PLACA: MEMT-0675" → "MEMT0675"
+ *               "PLACA S2D-857"    → "S2D857"
+ *   3. Elimina todo carácter que no sea letra A-Z o dígito 0-9
+ *      (guiones, espacios, puntos, etc.).
+ * @param {string} text - Valor crudo extraído del XML
+ * @returns {string}    - Placa normalizada lista para comparar con las flotas
+ */
+function cleanPlaca(text) {
+  if (!text) return '';
+  let s = text.toUpperCase().trim();
+  // Quitar prefijo "PLACA" seguido de ":", " :" o espacio (con espacios opcionales)
+  s = s.replace(/^PLACA\s*:?\s*/, '');
+  // Quitar separadores: guiones, espacios, guiones bajos, puntos
+  return s.replace(/[^A-Z0-9]/g, '');
+}
+
+/**
+ * extraerPlaca
+ * Intenta extraer la placa vehicular del XML usando dos estrategias:
+ *   1. Buscar un nodo <Placa> en cualquier parte del árbol.
+ *   2. Buscar en los nodos <Note> que mencionen "PLACA", "VEHICULO" o "UNIDAD"
+ *      y extraer el patrón alfanumérico de 6 caracteres con regex.
+ *
+ * @param {Element} root - Raíz del documento XML
+ * @returns {string} Placa normalizada, o '' si no se encontró
+ */
+function extraerPlaca(root) {
+  // ── Estrategia 1: etiqueta explícita <Placa> ──────────────────────────────
+  // Algunos emisores incluyen un nodo dedicado <Placa> con la matrícula.
+  const pNodes = findAllByLocal(root, 'Placa');
+  if (pNodes.length) return cleanPlaca(pNodes[0].textContent);
+
+  // ── Estrategia 2: AdditionalItemProperty con Name que mencione "Placa" ────
+  // Formato SUNAT para atributos adicionales de ítems (Código 7000 = N° Placa):
+  //   <cac:AdditionalItemProperty>
+  //     <cbc:Name>Gastos Art. 37 Renta:  Número de Placa</cbc:Name>
+  //     <cbc:NameCode>7000</cbc:NameCode>
+  //     <cbc:Value>S2D-857</cbc:Value>        ← aquí está la placa
+  //   </cac:AdditionalItemProperty>
+  for (const prop of findAllByLocal(root, 'AdditionalItemProperty')) {
+    const nameNode = findAllByLocal(prop, 'Name')[0];
+    const nameCode = findAllByLocal(prop, 'NameCode')[0]?.textContent?.trim() || '';
+    const nameText = (nameNode?.textContent || '').toUpperCase();
+    // Código 7000 = N° de Placa según catálogo SUNAT, o por texto del nombre
+    if (nameCode === '7000' || nameText.includes('PLACA')) {
+      const val = findAllByLocal(prop, 'Value')[0]?.textContent?.trim() || '';
+      if (val) return cleanPlaca(val);
+    }
+  }
+
+  // ── Estrategia 3: notas de texto con palabras clave ───────────────────────
+  // Algunos emisores incluyen la placa dentro de un <Note> con texto libre.
+  for (const note of findAllByLocal(root, 'Note')) {
+    const t = (note.textContent || '').toUpperCase();
+    if (t.includes('PLACA') || t.includes('VEHICULO') || t.includes('UNIDAD')) {
+      const m = t.match(/[A-Z0-9]{3}[- ]?[A-Z0-9]{3}/);
+      if (m) return cleanPlaca(m[0]);
+    }
+  }
+
+  return ''; // No se encontró placa en ninguna ubicación
+}
+
+/**
+ * sanitizeXML
+ * Limpia errores comunes de los emisores (Ransa, etc.) antes de intentar parsear.
+ */
+function sanitizeXML(text) {
+  if (!text) return '';
+  
+  let clean = text;
+
+  // 1. Quitar barras invertidas accidentales en los corchetes de CDATA
+  // Transforma <!\[CDATA\[  en <![CDATA[
+  clean = clean.replace(/<!\\\[CDATA\\\[/g, '<![CDATA[');
+  clean = clean.replace(/\\\]\\\]>/g, ']]>');
+
+  // 2. Escapar símbolos '&' que no estén escapados (ej: 'MOLINOS & CIA')
+  // Solo escapa el & si no es parte de una entidad ya existente (como &amp; o &quot;)
+  clean = clean.replace(/&(?!amp;|lt;|gt;|quot;|apos;|#)/g, '&amp;');
+
+  // 3. Limpiar errores de namespaces comunes (como el de schemaLocation)
+  clean = clean.replace(/xmlns:schemaLocation/g, 'xsi:schemaLocation');
+
+  return clean;
+}
+
+// ─── PARSE XML ────────────────────────────────────────────────────────────────
+/**
+ * parseXML
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Parsea un string XML de factura electrónica SUNAT (UBL 2.1) y devuelve
+ * un objeto plano con todos los campos necesarios para la ficha y el Excel.
+ *
+ * @param {string} xmlText  - Contenido completo del archivo XML como string
+ * @param {string} filename - Nombre del archivo (para referencia en la ficha)
+ * @returns {Object}        - Objeto con todos los campos del documento
+ */
+function parseXML(xmlText, filename) {
+
+  // ── 1. PARSEO DEL XML ──────────────────────────────────────────────────────
+  // DOMParser convierte el string XML en un árbol de nodos navegable.
+  const parser = new DOMParser();
+  const doc    = parser.parseFromString(xmlText, 'application/xml');
+  const root   = doc.documentElement;
+
+  // Si el XML está malformado, parsererror aparece como nodo en el DOM.
+  if (doc.querySelector('parsererror')) throw new Error('XML malformado');
+
+  // ── 2. CABECERA DEL DOCUMENTO ──────────────────────────────────────────────
+  // Tipo de comprobante: 01=FAC, 03=BOLETA, 14=RHN (Recibo Honorarios)
+  const cDoc  = xText(root, 'cbc:InvoiceTypeCode') || '01';
+  const tDoc  = { '01':'FAC', '03':'BOLETA', '14':'RHN' }[cDoc] || cDoc;
+
+  // Moneda del documento. PEN=Soles, USD=Dólares
+  const cMon  = xText(root, 'cbc:DocumentCurrencyCode') || 'PEN';
+  const mon   = { 'PEN':'S/', 'USD':'US$', 'EUR':'€' }[cMon] || cMon;
+
+  // Número de serie-correlativo (ej. FA35-00044349) y fecha de emisión
+  const docId = xText(root, 'cbc:ID');
+  const fecha = xText(root, 'cbc:IssueDate');
+
+  // ── 3. DATOS DEL EMISOR ───────────────────────────────────────────────────
+  // El emisor (proveedor) está en AccountingSupplierParty
+  const rucEmisor   = xText(root, 'cac:AccountingSupplierParty/cac:Party/cac:PartyIdentification/cbc:ID');
+  const razonEmisor = xText(root, 'cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cbc:RegistrationName');
+
+  // ── 4. DATOS DEL RECEPTOR ─────────────────────────────────────────────────
+  // El receptor (cliente) está en AccountingCustomerParty
+  const rucReceptor   = xText(root, 'cac:AccountingCustomerParty/cac:Party/cac:PartyIdentification/cbc:ID');
+  const razonReceptor = xText(root, 'cac:AccountingCustomerParty/cac:Party/cac:PartyLegalEntity/cbc:RegistrationName');
+
+  // Dirección: en UBL SUNAT la dirección real está en
+  // AccountingCustomerParty > Party > PartyLegalEntity > RegistrationAddress > AddressLine > Line
+  // No en PostalAddress (que es otro nodo opcional menos usado).
+  const custNodes = findAllByLocal(root, 'AccountingCustomerParty');
+  let dirReceptor = '';
+  if (custNodes.length) {
+    const lineNds = findAllByLocal(custNodes[0], 'Line');
+    if (lineNds.length) dirReceptor = lineNds[0].textContent?.trim() || '';
+  }
+  // Fallback a PostalAddress si el emisor usó esa estructura alternativa
+  if (!dirReceptor) {
+    dirReceptor = xText(root, 'cac:AccountingCustomerParty/cac:Party/cac:PostalAddress/cbc:StreetName') ||
+                  xText(root, 'cac:AccountingCustomerParty/cac:Party/cac:PostalAddress/cbc:CityName');
+  }
+
+  // ── 5. VALIDACIÓN DE RUC RECEPTOR ─────────────────────────────────────────
+  // Solo se aceptan documentos dirigidos a estos dos RUCs de la empresa.
+  // Si el RUC receptor es diferente → se marca como OBSERVADO en el dictamen.
+  const RUCS_VALIDOS    = new Set(['20603964153', '20605377018']);
+  const rucReceptorObs  = rucReceptor && !RUCS_VALIDOS.has(rucReceptor);
+
+  // ── 6. FORMA DE PAGO Y FECHA DE VENCIMIENTO ───────────────────────────────
+  // En UBL SUNAT, los nodos PaymentTerms pueden repetirse:
+  //   - El que tiene <cbc:ID>Detraccion</cbc:ID> contiene los datos de detracción.
+  //   - El que tiene <cbc:ID>FormaPago</cbc:ID> y PaymentMeansID="Credito"/"Contado"
+  //     describe la forma de pago principal.
+  //   - Los siguientes con PaymentMeansID="Cuota001", "Cuota002"... detallan cuotas.
+  //
+  // Recorremos todos los PaymentTerms para clasificarlos correctamente.
+  let formaPago = '', fechaVenc = '';
+  const allPayTerms = findAllByLocal(root, 'PaymentTerms');
+  for (const pt of allPayTerms) {
+    const ptId   = findAllByLocal(pt, 'ID')[0]?.textContent?.trim() || '';
+    const ptMean = findAllByLocal(pt, 'PaymentMeansID')[0]?.textContent?.trim() || '';
+
+    if (ptId === 'FormaPago') {
+      // "Credito" o "Contado" → forma de pago principal
+      if (ptMean === 'Credito' || ptMean === 'Contado') {
+        formaPago = ptMean;
+      }
+      // La primera cuota tiene la fecha de vencimiento del crédito
+      if (ptMean.startsWith('Cuota') && !fechaVenc) {
+        const due = findAllByLocal(pt, 'PaymentDueDate')[0]?.textContent?.trim() || '';
+        if (due) fechaVenc = due;
+      }
+    }
+  }
+  // Fallback: si no había FormaPago, intentar con DueDate a nivel raíz
+  if (!fechaVenc) fechaVenc = xText(root, 'cbc:DueDate') || xText(root, 'cac:InvoicePeriod/cbc:EndDate');
+
+  // ── 7. MONTOS PRINCIPALES ─────────────────────────────────────────────────
+  // LegalMonetaryTotal > LineExtensionAmount = Base imponible (sin IGV)
+  // LegalMonetaryTotal > PayableAmount       = Total a pagar (con IGV)
+  // Nota: TaxExclusiveAmount no siempre está presente; LineExtensionAmount sí.
+  const baseImponible = parseFloat(
+    xText(root, 'cac:LegalMonetaryTotal/cbc:LineExtensionAmount', '0')
+  ) || 0;
+  
+  // Para facturas con anticipo, PayableAmount es 0. 
+  // Leemos TaxInclusiveAmount (Total real) y si no existe, el PayableAmount.
+  const total = parseFloat(
+    xText(root, 'cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount', '0')
+  ) || parseFloat(
+    xText(root, 'cac:LegalMonetaryTotal/cbc:PayableAmount', '0')
+  ) || 0;
+
+
+  // ── 8. IGV ────────────────────────────────────────────────────────────────
+  // TaxTotal > TaxAmount = monto total de IGV del documento
+  // El porcentaje está dentro del primer TaxSubtotal que tenga <Percent>
+  // (puede haber varios subtotales: IGV, INA, ISC, etc.)
+
+  let igv = 0;
+  let pIgv = '0';
+
+  // 1. Buscamos el IGV sumando el TaxAmount de cada línea de detalle (InvoiceLine)
+  // Esto resuelve el problema de las facturas con anticipos.
+  const invoiceLines = findAllByLocal(root, 'InvoiceLine');
+  for (const line of invoiceLines) {
+    const taxSubtotals = findAllByLocal(line, 'TaxSubtotal');
+    for (const ts of taxSubtotals) {
+      const schemeNodes = findAllByLocal(ts, 'TaxScheme');
+      if (schemeNodes.length > 0) {
+        const schemeId = findAllByLocal(schemeNodes[0], 'ID')[0]?.textContent?.trim();
+        if (schemeId === '1000') { // 1000 = Código SUNAT para IGV
+          igv += parseFloat(findAllByLocal(ts, 'TaxAmount')[0]?.textContent?.trim() || '0');
+          const pct = findAllByLocal(ts, 'Percent')[0]?.textContent?.trim() || '0';
+          if (parseFloat(pct) > 0) pIgv = pct;
+        }
+      }
+    }
+  }
+
+  // 2. Si las líneas no tenían detalle de IGV, leemos el nodo global por si acaso
+  if (igv === 0 && pIgv === '0') {
+    const globalTaxSubtotals = findAllByLocal(root, 'TaxSubtotal');
+    for (const ts of globalTaxSubtotals) {
+      const schemeNodes = findAllByLocal(ts, 'TaxScheme');
+      if (schemeNodes.length > 0) {
+        const schemeId = findAllByLocal(schemeNodes[0], 'ID')[0]?.textContent?.trim();
+        if (schemeId === '1000') {
+          igv = parseFloat(findAllByLocal(ts, 'TaxAmount')[0]?.textContent?.trim() || '0');
+          const pct = findAllByLocal(ts, 'Percent')[0]?.textContent?.trim() || '0';
+          if (parseFloat(pct) > 0) pIgv = pct;
+          break;
+        }
+      }
+    }
+  }
+
+  // ── 9. DETRACCIÓN ─────────────────────────────────────────────────────────
+  // En UBL SUNAT la detracción se informa en un nodo PaymentTerms con
+  // <cbc:ID>Detraccion</cbc:ID> que contiene:
+  //   - PaymentMeansID → código de bien/servicio del catálogo SUNAT (ej. "022")
+  //   - PaymentPercent → porcentaje de detracción (ej. "12.00")
+  //   - Amount         → monto a detraer en soles (ej. "402.00")
+  //
+  // La moneda de detracción siempre es PEN (Soles) por normativa SUNAT.
+  // Para confirmar que hay detracción también se puede revisar la nota con
+  // languageLocaleID="2006" que dice "OPERACION SUJETA A DETRACCION".
+  let detrCodigo = '', detrPct = '', detrMonto = '', detrMoneda = '';
+
+  for (const pt of allPayTerms) {
+    const ptId = findAllByLocal(pt, 'ID')[0]?.textContent?.trim() || '';
+    if (ptId === 'Detraccion') {
+      // Código del servicio/bien según catálogo SUNAT (ej. 022 = GPS/Rastreo)
+      detrCodigo = findAllByLocal(pt, 'PaymentMeansID')[0]?.textContent?.trim() || '';
+      // Porcentaje aplicado sobre el total (antes de IGV)
+      detrPct    = findAllByLocal(pt, 'PaymentPercent')[0]?.textContent?.trim() || '';
+      // Monto resultante de aplicar el porcentaje
+      const amtNode = findAllByLocal(pt, 'Amount')[0];
+      detrMonto  = amtNode?.textContent?.trim() || '';
+      detrMoneda = amtNode?.getAttribute('currencyID') || 'PEN';
+      break;
+    }
+  }
+
+  // Si no se encontró en PaymentTerms, intentar con el nodo SUNATTransaction
+  // (formato alternativo usado por algunos emisores)
+  if (!detrCodigo) {
+    const detrNodes = findAllByLocal(root, 'SUNATTransaction');
+    if (detrNodes.length) {
+      detrPct    = findAllByLocal(detrNodes[0], 'Percent')[0]?.textContent?.trim() || '';
+      detrMonto  = findAllByLocal(detrNodes[0], 'Amount')[0]?.textContent?.trim()  || '';
+      detrCodigo = findAllByLocal(detrNodes[0], 'ID')[0]?.textContent?.trim()      || '';
+    }
+  }
+
+  // Hay detracción si se encontró código, porcentaje o monto
+  const tieneDetraccion = !!(detrCodigo || detrPct || detrMonto);
+
+  // ── 10. CÓDIGOS AMAZONÍA — VALIDACIÓN ESTRICTA ───────────────────────────
+  //
+  // Ley de la Amazonía (Ley 27037): las operaciones exoneradas de IGV en
+  // la región selva deben declararse con una glosa EXACTA en el comprobante:
+  //
+  //   Código 2001 → "BIENES TRANSFERIDOS EN LA AMAZONIA REGION SELVA
+  //                  PARA SER CONSUMIDOS EN LA MISMA"
+  //   Código 2002 → "SERVICIOS PRESTADOS EN LA AMAZONIA REGION SELVA
+  //                  PARA SER CONSUMIDOS EN LA MISMA"
+  //
+  // Reglas de validación:
+  //   A) Si IGV = 0 y hay nota con frase EXACTA 2001 → cod2001 = frase, OK
+  //   B) Si IGV = 0 y hay nota con frase EXACTA 2002 → cod2002 = frase, OK
+  //   C) Si IGV = 0 y hay nota con AMAZONIA/SELVA pero frase incompleta
+  //      → se guarda la nota real y se marca obs: "REVISAR GLOSA AMAZONÍA"
+  //   D) Si IGV = 0 y NO hay ninguna nota de Amazonía
+  //      → se marca obs: "IGV 0% SIN GLOSA AMAZONIA"
+  //   E) Si IGV > 0 → no aplica código Amazonía (campo vacío, sin observación)
+
+  // ── Patrones de comparación: sin tildes para detectar ambas variantes ────
+  // SUNAT acepta la glosa con tilde (AMAZONÍA, REGIÓN) o sin tilde (AMAZONIA, REGION).
+  // La comparación se hace siempre sobre texto normalizado (sin diacríticos),
+  // pero el valor que se GUARDA es el texto original del XML tal como lo escribió
+  // el emisor, respetando su ortografía.
+  //
+  // ── Patrones de detección de glosa Amazonía ─────────────────────────────
+  //
+  // Palabras OBLIGATORIAS para código 2001 (Bienes):
+  //   BIENES  +  AMAZONIA  +  CONSUMIDOS
+  // Palabras OBLIGATORIAS para código 2002 (Servicios):
+  //   SERVICIOS  +  AMAZONIA  +  CONSUMIDOS
+  //
+  // La palabra SELVA es OPCIONAL: la glosa es válida con o sin ella.
+  // Variantes aceptadas (con o sin tildes en AMAZONÍA/REGIÓN, normAmaz las iguala):
+  //
+  //   2001-A: "BIENES TRANSFERIDOS EN LA AMAZONIA REGION SELVA PARA SER CONSUMIDOS EN LA MISMA"
+  //   2001-B: "BIENES TRANSFERIDOS EN LA AMAZONÍA REGIÓN SELVA PARA SER CONSUMIDOS EN LA MISMA"
+  //   2001-C: "BIENES TRANSFERIDOS EN LA AMAZONIA PARA SER CONSUMIDOS EN LA MISMA"
+  //   2001-D: "BIENES TRANSFERIDOS EN LA AMAZONÍA PARA SER CONSUMIDOS EN LA MISMA"
+  //   (ídem para 2002 con SERVICIOS PRESTADOS)
+
+  // Palabras obligatorias — SELVA fue eliminado de aquí por ser opcional
+  const PATRON_2001_A = 'BIENES';
+  const PATRON_2001_B = 'AMAZONIA';    // normAmaz convierte AMAZONÍA → AMAZONIA
+  const PATRON_2001_C = 'CONSUMIDOS';  // antes era SELVA; SELVA ahora es opcional
+
+  const PATRON_2002_A = 'SERVICIOS';
+  const PATRON_2002_B = 'AMAZONIA';
+  const PATRON_2002_C = 'CONSUMIDOS';  // SELVA opcional
+
+  // Textos canónicos de referencia (sin tilde, versión estándar interna).
+  // La columna Glosa siempre muestra el texto REAL del XML.
+  const CANON_2001 = 'BIENES TRANSFERIDOS EN LA AMAZONIA REGION SELVA PARA SER CONSUMIDOS EN LA MISMA';
+  const CANON_2002 = 'SERVICIOS PRESTADOS EN LA AMAZONIA REGION SELVA PARA SER CONSUMIDOS EN LA MISMA';
+
+  /**
+   * normAmaz — normaliza un string para comparación: 
+   * Limpia tildes rotas (, Ã), tildes correctas (Í, Ó) y luego lo pasa a texto plano.
+   */
+  const normAmaz = s => {
+    let str = s.toUpperCase();
+    
+    // El patrón [^\sA-Z]{1,3} busca entre 1 y 3 caracteres que NO sean espacios ni letras normales.
+    // Esto atrapa tanto la "Í" como los textos rotos "" o "Ã".
+    str = str.replace(/AMAZON[^\sA-Z]{1,3}A/g, 'AMAZONIA');
+    str = str.replace(/REGI[^\sA-Z]{1,3}N/g, 'REGION');
+    
+    // Normalización estándar por si queda alguna otra tilde en el resto del texto
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  };
+
+  let cod2001 = '', cod2002 = '';  // código asignado ('2001' | '2002' | '')
+  let glosa2001 = '', glosa2002 = ''; // texto real del XML para mostrar/exportar
+  let amazObs = '';                // observación si la glosa es incorrecta o falta
+  let infoBancaria = ''; // <--- NUEVA VARIABLE PARA BANCOS
+
+
+  // Lista de RUCs de Bancos exceptuados de la glosa de Amazonía
+  const RUCS_BANCOS = new Set([
+    '20100130204', '20100053455', '20101036813', '20516711559', '20100047218'
+  ]);
+
+  if (igv === 0) {
+    if (RUCS_BANCOS.has(rucEmisor)) {
+      // Excepción: Es un banco, el IGV 0% es por comisiones bancarias.
+      // No requiere glosa de Amazonía, se queda sin observaciones.
+      //amazObs = 'IGV 0% es por Comisiones Bancaria';
+      amazObs ='';
+      infoBancaria = 'IGV 0% es por Comisiones Bancarias'; // Guardamos el mensaje
+
+
+    } else {
+      const notasDoc    = findAllByLocal(root, 'Note');
+      let notaAmazFound = false;
+
+      for (const n of notasDoc) {
+        const raw  = (n.textContent || '').trim();       // texto original del emisor
+        const norm = normAmaz(raw);                       // normalizado para comparar
+
+        // ¿Esta nota menciona Amazonía o Selva?
+        if (!norm.includes('AMAZONIA') && !norm.includes('SELVA')) continue;
+        notaAmazFound = true;
+
+        // ── NUEVA REGLA: Si mezclan Bienes y Servicios en la misma glosa ──
+        if (norm.includes('BIENES') && norm.includes('SERVICIOS')) {
+          amazObs = 'SEPARAR GLOSA BIENES Y SERVICIOS';
+          // No asignamos cod2001 ni cod2002 y rompemos el ciclo para que quede observado
+          glosa2001 = raw;   // texto original del XML (con o sin tilde, con o sin SELVA)
+          break;
+        }
+
+        // Caso A — glosa de BIENES (código 2001)
+        // Obligatorio: BIENES + AMAZONIA + CONSUMIDOS  (SELVA es opcional)
+        if (norm.includes(PATRON_2001_A) &&
+            norm.includes(PATRON_2001_B) &&
+            norm.includes(PATRON_2001_C)) {
+          cod2001   = '2001';
+          glosa2001 = raw;   // texto original del XML (con o sin tilde, con o sin SELVA)
+          amazObs   = '';
+          break;
+        }
+
+        // Caso B — glosa de SERVICIOS (código 2002)
+        // Obligatorio: SERVICIOS + AMAZONIA + CONSUMIDOS  (SELVA es opcional)
+        if (norm.includes(PATRON_2002_A) &&
+            norm.includes(PATRON_2002_B) &&
+            norm.includes(PATRON_2002_C)) {
+          cod2002   = '2002';
+          glosa2002 = raw;   // texto original del XML (con o sin tilde, con o sin SELVA)
+          amazObs   = '';
+          break;
+        }
+
+        // Caso C — menciona Amazonía/Selva pero la frase es incompleta o distinta
+        amazObs = 'REVISAR GLOSA AMAZ.: ' + raw.substring(0, 80) + (raw.length > 80 ? '...' : '');
+      }
+
+      // Caso D — IGV = 0 y ninguna nota menciona Amazonía
+      if (!notaAmazFound && !cod2001 && !cod2002) {
+        amazObs = 'IGV 0% SIN GLOSA AMAZONIA EN EL COMPROBANTE. REVISAR PRODUCTO Y NORMATIVIDAD PARA DETERMINAR SI CORRESPONDE O NO';
+      }
+    }
+  }  
+  // Caso E — IGV > 0: no aplica régimen Amazonía (todos los campos quedan vacíos)
+
+  // ── 11. PLACA VEHICULAR Y VALIDACIÓN CRUZADA ─────────────────────────────
+  // Reglas de validación:
+  //   A) Si la placa no está en ninguna flota → ERROR (placa desconocida)
+  //   B) Si la placa pertenece a Transportes pero el receptor es Comercio → ERROR
+  //   C) Si la placa pertenece a Comercio    pero el receptor es Transportes → ERROR
+  //   D) Si la placa pertenece a la empresa correcta → OK
+  //
+  // RUCs de referencia para validación cruzada:
+  //   20605377018 = Transportes Amazonía → usa FLOTA_TRANSPORTES
+  //   20603964153 = Comercio Amazonía    → usa FLOTA_COMERCIO
+  const placa = extraerPlaca(root);
+  const obsArr = [];
+
+  if (placa) {
+    const rucPropietario = getRUCEmpresa(placa); // RUC de la empresa due&#241;a de la placa
+
+    if (rucPropietario === null) {
+      // Caso A: la placa no está en ninguna de las dos flotas
+      obsArr.push(`PLACA ${placa} NO PERTENECE A NINGUNA FLOTA`);
+
+    } else if (rucPropietario !== rucReceptor) {
+      // Casos B y C: la placa existe pero corresponde a la otra empresa
+      const nombreProp = rucPropietario === '20605377018' ? 'TRANSPORTES AMAZONIA' : 'COMERCIO AMAZONIA';
+      const nombreRecep = rucReceptor   === '20605377018' ? 'TRANSPORTES AMAZONIA'
+                        : rucReceptor   === '20603964153' ? 'COMERCIO AMAZONIA'
+                        : rucReceptor;
+      obsArr.push(`PLACA ${placa} PERTENECE A ${nombreProp} PERO LA FACTURA ES DE ${nombreRecep}`);
+    }
+    // Caso D: rucPropietario === rucReceptor → placa correcta, sin observación
+  }
+
+  if (rucReceptorObs) obsArr.push(`RUC RECEPTOR ${rucReceptor} NO AUTORIZADO`);
+  if (amazObs)        obsArr.push(amazObs);
+  
+  let dictamen = obsArr.length ? 'OBSERVADO: ' + obsArr.join(' | ') : 'OK';
+  
+  // Si hay mensaje de banco, lo pegamos al dictamen
+  if (infoBancaria) {
+    if (dictamen === 'OK') dictamen = 'OK: ' + infoBancaria;
+    else dictamen += ' | ' + infoBancaria;
+  }
+
+
+  // ── 12. LÍNEAS DE DETALLE (ÍTEMS) ─────────────────────────────────────────
+  // Cada <cac:InvoiceLine> representa un producto o servicio facturado.
+  const lineNodes = findAllByLocal(root, 'InvoiceLine');
+  const items = lineNodes.map((line, idx) => {
+    const desc   = findAllByLocal(line, 'Description')[0]?.textContent?.trim()             || '';
+    const uc     = findAllByLocal(line, 'InvoicedQuantity')[0]?.getAttribute('unitCode')   || '';
+    const qty    = parseFloat(findAllByLocal(line, 'InvoicedQuantity')[0]?.textContent?.trim() || '1');
+    const pUnit  = parseFloat(findAllByLocal(line, 'PriceAmount')[0]?.textContent?.trim()  || '0');
+    const pTotal = parseFloat(findAllByLocal(line, 'LineExtensionAmount')[0]?.textContent?.trim() || '0');
+    return { n: idx + 1, desc, uc, qty, pUnit, pTotal };
+  });
+
+  // ── 13. RESULTADO ─────────────────────────────────────────────────────────
+  // Se devuelven todos los campos necesarios para la vista y el Excel.
+  // Los campos *Sol / *Usd se calculan aquí para simplificar la vista.
+  // placaEmpresa: nombre legible de la empresa due&#241;a de la placa (para la ficha)
+  const placaRucOwner = getRUCEmpresa(placa);
+  const placaEmpresa  = placaRucOwner === '20605377018' ? 'Transportes Amazonía'
+                      : placaRucOwner === '20603964153' ? 'Comercio Amazonía'
+                      : placa ? 'Desconocida' : '';
+
+  return {
+    fecha, tDoc, docId, mon, cMon,
+    rucEmisor, razonEmisor,
+    rucReceptor, razonReceptor, dirReceptor, rucReceptorObs,
+    formaPago, fechaVenc,
+    baseImponible, total, igv, pIgv,
+    tieneDetraccion, detrCodigo, detrPct, detrMonto, detrMoneda,
+    igvSol:   mon === 'S/'  ? igv            : 0,
+    igvUsd:   mon === 'US$' ? igv            : 0,
+    totalSol: mon === 'S/'  ? total          : 0,
+    totalUsd: mon === 'US$' ? total          : 0,
+    baseSol:  mon === 'S/'  ? baseImponible  : 0,
+    baseUsd:  mon === 'US$' ? baseImponible  : 0,
+    cod2001, glosa2001, cod2002, glosa2002, amazObs, placa, placaEmpresa, dictamen,
+    items, file: filename
+  };
+}
+
+// ─── ANÁLISIS PRINCIPAL ───────────────────────────────────────────────────────
+
+/**
+ * analyze
+ * Función principal que se ejecuta al presionar el botón ANALIZAR.
+ * Itera sobre los archivos XML seleccionados, parsea cada uno con parseXML(),
+ * actualiza el progreso en tiempo real y al finalizar construye la vista de pesta&#241;as.
+ *
+ * Es async porque usa file.text() (Promise) y setTimeout para no bloquear la UI
+ * mientras procesa lotes de archivos.
+ */
+async function analyze() {
+  if (!xmlFiles.length) return;
+  results = [];
+  errorCount = 0; // <--- AGREGA ESTA LÍNEA AQUÍ PARA RESETEAR LOS ERRORES
+
+  $('progress-wrap').style.display = '';
+  $('btn-analyze').disabled = true;
+  $('btn-export').disabled  = true;
+  $('console').innerHTML = '<span class="line-info">Iniciando análisis...</span><br/>';
+  setProgress(0, xmlFiles.length);
+
+  for (let i = 0; i < xmlFiles.length; i++) {
+    const file = xmlFiles[i];
+    try {
+      // 1. Leer el archivo como Buffer en lugar de texto plano
+      const buffer = await file.arrayBuffer();
+      
+      // 2. Extraer un pedacito para ver qué "encoding" dice el XML
+      const snippet = new TextDecoder('utf-8').decode(buffer.slice(0, 200));
+      const encMatch = snippet.match(/encoding=['"]([^'"]+)['"]/i);
+      let encoding = 'utf-8'; // por defecto
+      
+      // 3. Si el XML dice ISO-8859 o Windows, configuramos el lector para eso
+      if (encMatch) {
+        const detected = encMatch[1].toLowerCase();
+        if (detected.includes('iso-8859') || detected.includes('windows')) {
+          encoding = 'iso-8859-1';
+        }
+      }
+      
+      // 4. Decodificar el texto completo con el formato correcto
+      let text;
+      try {
+        text = new TextDecoder(encoding).decode(buffer);
+      } catch (err) {
+        text = new TextDecoder('utf-8').decode(buffer); // Fallback
+      }
+
+      // 5 LIMPIEZA PREVENTIVA (SANITIZER) ───────────────────
+      // Esta sección repara los corchetes escapados y errores de formato 
+      // de emisores como Ransa antes de que ingresen al parser.
+      if (text) {
+        // Quitar barras invertidas en el CDATA (corrige el error de Ransa)
+        text = text.replace(/<!\\\[CDATA\\\[/g, '<![CDATA[');
+        text = text.replace(/\\\]\\\]>/g, ']]>');
+        
+        // Escapar símbolos '&' sueltos que rompen el XML (ej: 'MOLINOS & CIA')
+        text = text.replace(/& /g, '&amp; ');
+        
+        // Corregir cabeceras de schemaLocation mal escritas
+        text = text.replace(/xmlns:schemaLocation/g, 'xsi:schemaLocation');
+      }
+      // ───────────────────────────────────────────────────────────────────────
+
+      results.push(parseXML(text, file.name));
+      log(`✓ ${file.name}`, 'ok');
+    } catch(e) {
+      errorCount++; // <--- SUMA 1 AL CONTADOR DE ERRORES
+      log(`✗ ${file.name}: ${e.message}`, 'err');
+    }
+    setProgress(i+1, xmlFiles.length);
+    if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+
+  updateStats();
+  buildTabs();
+  $('btn-analyze').disabled = false;
+  $('btn-export').disabled  = false;
+  log(`\nListo. ${results.length} documentos procesados.`, 'done');
+}
+
+// ─── ESTADÍSTICAS DEL SIDEBAR ─────────────────────────────────────────────────
+
+/**
+ * updateStats
+ * Actualiza los contadores del panel lateral (Total, OK, Observados, Amazonía)
+ * con los datos del array global `results` después del análisis.
+ */
+function updateStats() {
+  const obs = results.filter(r=>r.dictamen.includes('OBSERVADO')).length;
+  const amz = results.filter(r=>r.cod2001||r.cod2002||r.amazObs).length; // incluye glosas con obs
+  $('s-total').textContent = results.length;
+  $('s-ok').textContent    = results.length - obs;
+  $('s-obs').textContent   = obs;
+  $('s-amz').textContent   = amz;
+  $('s-err').textContent   = errorCount; 
+
+}
+
+// ─── CONSTRUCCIÓN DE PESTA&#209;AS ─────────────────────────────────────────────────
+
+/**
+ * buildTabs
+ * Construye dinámicamente la barra de pesta&#241;as y los paneles de contenido.
+ * Si hay más de un archivo → agrega una pesta&#241;a "Resumen" con tabla general.
+ * Por cada resultado → agrega una pesta&#241;a con la ficha de factura completa.
+ * Los colores de los dots (verde/rojo) indican el dictamen de cada documento.
+ */
+function buildTabs() {
+  $('empty').style.display    = 'none';
+  $('tab-area').style.display = 'flex';
+
+  const bar      = $('tab-bar');
+  const contents = $('tab-contents');
+  bar.innerHTML      = '';
+  contents.innerHTML = '';
+
+  // "Resumen" tab
+  if (results.length > 1) {
+    bar.insertAdjacentHTML('beforeend', `
+      <div class="tab tab-all active" onclick="switchTab('all')" id="tab-btn-all">
+        📋 Resumen <span class="tab-counter">${results.length}</span>
+      </div>`);
+    contents.insertAdjacentHTML('beforeend', `
+      <div class="tab-content active" id="tab-all">${buildSummary()}</div>`);
+  }
+
+  results.forEach((r, i) => {
+    const obs    = r.dictamen.includes('OBSERVADO');
+    const dot    = obs ? 'obs' : 'ok';
+    const label  = r.docId || r.file;
+    const active = results.length === 1 ? 'active' : '';
+    bar.insertAdjacentHTML('beforeend', `
+      <div class="tab ${active}" onclick="switchTab(${i})" id="tab-btn-${i}" title="${esc(r.file)}">
+        <span class="tab-dot ${dot}"></span>
+        <span style="overflow:hidden;text-overflow:ellipsis">${esc(label)}</span>
+      </div>`);
+    contents.insertAdjacentHTML('beforeend', `
+      <div class="tab-content ${active}" id="tab-${i}">${buildInvoiceCard(r)}</div>`);
+  });
+
+  // If single file, no summary tab — just show the invoice
+  if (results.length === 1) {
+    const onlyTab = bar.querySelector('.tab');
+    if (onlyTab) onlyTab.classList.add('active');
+  }
+}
+
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-btn-' + id)?.classList.add('active');
+  document.getElementById('tab-' + id)?.classList.add('active');
+}
+
+// ─── SUMMARY TABLE ────────────────────────────────────────────────────────────
+function buildSummary() {
+  const tBadge = { FAC:'badge-fac', BOLETA:'badge-bol', RHN:'badge-rhn' };
+
+  const rows = results.map((r, i) => {
+    const obs = r.dictamen.includes('OBSERVADO');
+    return `<tr class="${obs?'row-obs':'row-ok'}" style="cursor:pointer" onclick="switchTab(${i})">
+      <td>${i+1}</td>
+      <td>${esc(r.fecha)||'&#8212;'}</td>
+      <td><span class="badge ${tBadge[r.tDoc]||''}">${esc(r.tDoc)}</span></td>
+      <td>${esc(r.docId)||'&#8212;'}</td>
+      <td>${esc(r.rucEmisor)||'&#8212;'}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis"
+          title="${esc(r.razonEmisor)}">${esc(r.razonEmisor)||'&#8212;'}</td>
+      <td>${esc(r.mon)}</td>
+      <td style="text-align:right">${r.totalSol?fmt(r.totalSol):'&#8212;'}</td>
+      <td style="text-align:right">${r.totalUsd?fmt(r.totalUsd):'&#8212;'}</td>
+      <td style="text-align:right">${r.igvSol?fmt(r.igvSol):'&#8212;'}</td>
+      <td style="text-align:right">${r.igvUsd?fmt(r.igvUsd):'&#8212;'}</td>
+      <td style="text-align:right">${r.pIgv?r.pIgv+'%':'&#8212;'}</td>
+      <td>${esc(r.formaPago)||'&#8212;'}</td>
+      <td>${r.cod2001?'<span class="badge badge-amz">2001</span>':'&#8212;'}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;font-size:.65rem"
+          title="${esc(r.glosa2001)}">${esc(r.glosa2001)||'&#8212;'}</td>
+      <td>${r.cod2002?'<span class="badge badge-amz">2002</span>':'&#8212;'}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;font-size:.65rem"
+          title="${esc(r.glosa2002)}">${esc(r.glosa2002)||'&#8212;'}</td>
+      <td>${r.tieneDetraccion?'<span style="color:var(--ok);font-weight:700">S&#205;</span>':'NO'}</td>
+      <td>${esc(r.detrCodigo)||'&#8212;'}</td>
+      <td style="text-align:right">${r.detrPct?r.detrPct+'%':'&#8212;'}</td>
+      <td style="text-align:right">${r.detrMonto?fmt(r.detrMonto):'&#8212;'}</td>
+      <td>${esc(r.detrMoneda)||'&#8212;'}</td>
+      <td style="font-weight:700">${esc(r.placa)||'&#8212;'}</td>
+      <td>${obs
+        ? '<span style="color:var(--warn);font-weight:700">'+esc(r.dictamen)+'</span>'
+        : '<span style="color:var(--ok);font-weight:700">'+esc(r.dictamen)+'</span>'}</td>
+
+    </tr>`;
+  }).join('');
+
+  // La tabla de resumen se estructura en 3 partes:
+  //   1. .summary-table-wrap  → contenedor con scroll propio (activa sticky thead)
+  //   2. .summary-footer      → nota al pie fuera del scroll
+  // Esto garantiza que el thead con position:sticky funcione correctamente.
+  // summary-table-wrap: tiene overflow:auto → genera el scroll y activa sticky thead
+  // summary-footer: fuera del scroll, siempre visible al pie
+  return `<div class="summary-table-wrap">
+    <table class="summary-table">
+      <thead><tr>
+        <th>#</th>
+        <th>Fecha</th>
+        <th>Tipo</th>
+        <th>Documento</th>
+        <th>RUC Emisor</th>
+        <th>Raz&#243;n Social</th>
+        <th>Mon</th>
+        <th>Total S/</th>
+        <th>Total US$</th>
+        <th>IGV S/</th>
+        <th>IGV US$</th>
+        <th>% IGV</th>
+        <th>Forma Pago</th>
+        <th>C&#243;d. 2001</th>
+        <th>Glosa 2001</th>
+        <th>C&#243;d. 2002</th>
+        <th>Glosa 2002</th>
+        <th>Detrac.</th>
+        <th>C&#243;d. Detrac.</th>
+        <th>% Detrac.</th>
+        <th>Monto Detrac.</th>
+        <th>Moneda Detrac.</th>
+        <th>Placa</th>
+        <th>Dictamen</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
+  <div class="summary-footer">
+    Haz clic en una fila para ver la ficha completa &mdash; ${results.length} documento(s)
+  </div>`;
+}
+
+// ─── INVOICE CARD ─────────────────────────────────────────────────────────────
+function buildInvoiceCard(r) {
+  const obs = r.dictamen.includes('OBSERVADO');
+
+  // Items table
+  const itemRows = r.items.length > 0
+    ? r.items.map(it => `
+      <tr>
+        <td class="n-col">${it.n}</td>
+        <td class="desc-col">${esc(it.desc)||'—'}</td>
+        <td>${esc(it.uc)||'—'}</td>
+        <td>${it.qty??'—'}</td>
+        <td>${it.pUnit?fmt(it.pUnit):'—'}</td>
+        <td>${it.pTotal?fmt(it.pTotal):'—'}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:16px">Sin líneas de detalle</td></tr>`;
+
+  // Moneda label
+  const monLabel = r.cMon === 'PEN' ? 'S/ (Soles)' : r.cMon === 'USD' ? 'US$ (Dólares)' : r.mon;
+
+  return `
+  <div class="invoice-card">
+
+    <!-- Header band -->
+    <div class="inv-header">
+      <div>
+        <div class="doc-id">${esc(r.docId)||'—'}</div>
+        <div class="doc-type">${esc(r.tDoc)} · ${esc(r.fecha)||'—'} · ${esc(r.file)}</div>
+      </div>
+      <div class="dictamen-badge ${obs?'obs':'ok'}">${obs?'⚠ OBSERVADO':'✓ OK'}</div>
+    </div>
+
+    <!-- EMISOR -->
+    <div class="inv-section">
+      <div class="inv-section-title">Datos del Emisor</div>
+      <div class="field-grid">
+        <div class="field-label">Fecha de Emisi&#243;n</div>${v(r.fecha,'highlight')}
+        <div class="field-label">Tipo de Documento</div>${v(r.tDoc)}
+        <div class="field-label">N&#250;mero de Documento</div>${v(r.docId,'highlight')}
+        <div class="field-label">RUC Emisor</div>${v(r.rucEmisor)}
+        <div class="field-label">Raz&#243;n Social Emisor</div>${v(r.razonEmisor)}
+        <div class="field-label">Moneda</div>${v(monLabel)}
+      </div>
+    </div>
+
+    <!-- RECEPTOR -->
+    <!-- RUC Receptor se valida contra RUCS_VALIDOS en parseXML.             -->
+    <!-- Si el RUC no coincide, rucReceptorObs=true y los campos se pintan   -->
+    <!-- en rojo (warn-val) y se a&#241;ade una observación al dictamen.          -->
+    <!-- Dirección: extraída de AccountingCustomerParty > AddressLine > Line  -->
+    <!-- Forma de pago: del PaymentTerms con ID="FormaPago" y PaymentMeansID -->
+    <!--   "Credito" o "Contado". Fecha vencimiento: del primer nodo Cuota.   -->
+    <div class="inv-section">
+      <div class="inv-section-title">Datos del Receptor
+        ${r.rucReceptorObs ? '<span style="margin-left:8px;font-size:.6rem;background:rgba(239,68,68,.15);color:var(--warn);border:1px solid rgba(239,68,68,.3);padding:2px 8px;border-radius:99px;font-weight:700">&#9888; RUC NO AUTORIZADO</span>' : ''}
+      </div>
+      <div class="field-grid">
+        <!-- RUC validado contra lista de RUCs autorizados -->
+        <div class="field-label">RUC Receptor</div>${v(r.rucReceptor, r.rucReceptorObs ? 'warn-val' : '')}
+        <div class="field-label">Raz&#243;n Social Receptor</div>${v(r.razonReceptor, r.rucReceptorObs ? 'warn-val' : '')}
+        <!-- Dirección desde RegistrationAddress > AddressLine > Line -->
+        <div class="field-label">Direcci&#243;n Receptor</div>${v(r.dirReceptor, r.rucReceptorObs ? 'warn-val' : '')}
+        <!-- Forma de pago: "Credito" o "Contado" del PaymentTerms principal -->
+        <div class="field-label">Forma de Pago</div>${v(r.formaPago)}
+        <!-- Fecha de vencimiento: del primer PaymentTerms tipo Cuota -->
+        <div class="field-label">Fecha de Vencimiento</div>${v(r.fechaVenc)}
+        <!-- Placa: extraída del XML y validada por empresa. warn-val si hay cruce o es desconocida -->
+        <div class="field-label">Placa Veh&#237;culo</div>${v(r.placa, obs && r.placa ? 'warn-val' : '')}
+        <!-- Empresa propietaria de la placa según las flotas registradas -->
+        <div class="field-label">Placa Pertenece A</div>${v(r.placaEmpresa, r.placaEmpresa === 'Desconocida' ? 'warn-val' : r.placaEmpresa && r.placaEmpresa !== '' ? 'ok-val' : '')}
+      </div>
+    </div>
+
+    <!-- ITEMS -->
+    <div class="inv-section">
+      <div class="inv-section-title">&#205;tems / L&#237;neas de Detalle (${r.items.length})</div>
+      <table class="items-table">
+        <thead><tr>
+          <th>N°</th>
+          <th>Descripci&#243;n</th>
+          <th>U. Medida</th>
+          <th style="text-align:right">Cant.</th>
+          <th style="text-align:right">P. Unitario</th>
+          <th style="text-align:right">P. Total</th>
+        </tr></thead>
+        <tbody>${itemRows}</tbody>
+      </table>
+    </div>
+
+    <!-- MONTOS E IMPUESTOS -->
+    <!-- Base imponible: de LegalMonetaryTotal > LineExtensionAmount (monto sin IGV) -->
+    <!-- Total:          de LegalMonetaryTotal > PayableAmount (monto final con IGV) -->
+    <!-- IGV:            de TaxTotal > TaxAmount (suma de todos los impuestos) -->
+    <!-- % IGV:          del primer TaxSubtotal con Percent > 0 -->
+    <div class="inv-section">
+      <div class="inv-section-title">Montos e Impuestos</div>
+      <div class="field-grid">
+        <!-- Base imponible según moneda del documento -->
+        <div class="field-label">Base Imponible S/</div>${v(r.baseSol ? fmt(r.baseSol) : '')}
+        <div class="field-label">Base Imponible US$</div>${v(r.baseUsd ? fmt(r.baseUsd) : '')}
+        <!-- IGV calculado según moneda -->
+        <div class="field-label">IGV S/</div>${v(r.igvSol ? fmt(r.igvSol) : (r.mon==='S/' ? '0.00' : ''))}
+        <div class="field-label">IGV US$</div>${v(r.igvUsd ? fmt(r.igvUsd) : '')}
+        <!-- Porcentaje IGV del primer TaxSubtotal con porcentaje mayor a cero -->
+        <div class="field-label">% de IGV</div>${v(r.pIgv ? r.pIgv + '%' : '')}
+        <!-- Total a pagar: PayableAmount (base + IGV) -->
+        <div class="field-label">Total S/</div>${v(r.totalSol ? fmt(r.totalSol) : '', 'highlight')}
+        <div class="field-label">Total US$</div>${v(r.totalUsd ? fmt(r.totalUsd) : '')}
+        <!-- Códigos Amazonía: código asignado + glosa exacta tal como viene en el XML -->
+        <div class="field-label">C&#243;digo Amazon&#237;a 2001</div>${v(r.cod2001, r.cod2001?'ok-val':'')}
+        <div class="field-label">Glosa 2001</div>${v(r.glosa2001)}
+        <div class="field-label">C&#243;digo Amazon&#237;a 2002</div>${v(r.cod2002, r.cod2002?'ok-val':'')}
+        <div class="field-label">Glosa 2002</div>${v(r.glosa2002)}
+        <!-- Observación: aparece si IGV=0 y la glosa es incorrecta o falta -->
+        <div class="field-label">Obs. Glosa - IGV.</div>${v(r.amazObs, r.amazObs?'warn-val':'')}
+      </div>
+    </div>
+
+    <!-- DETRACCIÓN -->
+    <!-- Muestra los campos de detracción extraídos del nodo PaymentTerms con ID="Detraccion" -->
+    <div class="inv-section">
+      <div class="inv-section-title">Detracci&#243;n</div>
+      <div class="field-grid">
+        <!-- tieneDetraccion = true si se encontró código, porcentaje o monto en el XML -->
+        <div class="field-label">Con Detracci&#243;n</div>${v(r.tieneDetraccion ? 'SÍ' : 'NO', r.tieneDetraccion ? 'ok-val' : '')}
+        <!-- Código del bien/servicio según catálogo SUNAT (ej. 022 = Rastreo satelital) -->
+        <div class="field-label">C&#243;digo SUNAT Detracci&#243;n</div>${v(r.detrCodigo)}
+        <!-- Porcentaje aplicado sobre la base, extraído de PaymentPercent -->
+        <div class="field-label">Porcentaje Detracci&#243;n</div>${v(r.detrPct ? r.detrPct + '%' : '')}
+        <!-- Monto resultante de aplicar el porcentaje, extraído de Amount -->
+        <div class="field-label">Monto Detracci&#243;n</div>${v(r.detrMonto ? fmt(r.detrMonto) : '')}
+        <!-- Moneda de la detracción (siempre PEN por normativa SUNAT) -->
+        <div class="field-label">Moneda Detracci&#243;n</div>${v(r.detrMoneda)}
+        <!-- Dictamen final: OK o listado de observaciones encontradas -->
+        <div class="field-label">Dictamen</div>${v(r.dictamen, obs ? 'warn-val' : 'ok-val')}
+      </div>
+    </div>
+
+  </div>`;
+}
+
+// ─── EXPORTACIÓN A EXCEL ──────────────────────────────────────────────────────
+
+/**
+ * exportExcel
+ * Genera un archivo .xlsx usando la librería SheetJS (XLSX).
+ * Crea una hoja por cada documento procesado (nombre = número de factura)
+ * con la ficha completa en formato campo-valor, y una hoja final "RESUMEN"
+ * con todos los documentos en tabla para comparación rápida.
+ *
+ * Los estilos (colores de encabezado) requieren xlsx con soporte de estilos
+ * (xlsx.full.min.js), que es la versión incluida en este archivo.
+ */
+function exportExcel() {
+  if (!results.length) return;
+  const wb = XLSX.utils.book_new();
+
+  results.forEach((r, idx) => {
+    const sheetName = (r.docId || `DOC_${idx+1}`).replace(/[\\/:*?[\]]/g,'_').substring(0,31);
+    const data = [
+      ['CAMPO', 'VALOR'],
+      ['FECHA EMISION', r.fecha],
+      ['TIPO DOCUMENTO', r.tDoc],
+      ['DOCUMENTO', r.docId],
+      ['RUC EMISOR', r.rucEmisor],
+      ['RAZON SOCIAL EMISOR', r.razonEmisor],
+      ['RUC RECEPTOR', r.rucReceptor],
+      ['RAZON SOCIAL RECEPTOR', r.razonReceptor],
+      ['DIRECCION RECEPTOR', r.dirReceptor],
+      ['MONEDA', r.mon],
+      ['FORMA DE PAGO', r.formaPago],
+      ['FECHA DE VENCIMIENTO', r.fechaVenc],
+      [],
+      ['N°','DESCRIPCION','UNIDAD DE MEDIDA','CANTIDAD','PRECIO UNITARIO','PRECIO TOTAL'],
+      ...r.items.map(it=>[it.n,it.desc,it.uc,it.qty,it.pUnit,it.pTotal]),
+      [],
+      ['BASE IMPONIBLE SOLES',      r.baseSol],
+      ['BASE IMPONIBLE DOLARES',     r.baseUsd],
+      ['CON DETRACCION',             r.tieneDetraccion ? 'SÍ' : 'NO'],
+      ['CODIGO SUNAT DETRACCION',    r.detrCodigo],
+      ['PORCENTAJE DE DETRACCION',   r.detrPct ? r.detrPct + '%' : ''],
+      ['MONTO DETRACCION',           r.detrMonto],
+      ['MONEDA DETRACCION',          r.detrMoneda],
+      ['IGV SOLES',                  r.igvSol],
+      ['IGV DOLARES',                r.igvUsd],
+      ['% DE IGV',                   r.pIgv ? r.pIgv + '%' : ''],
+      ['TOTAL SOLES',                r.totalSol],
+      ['TOTAL DOLARES',              r.totalUsd],
+      ['CODIGO 2001',                r.cod2001],
+      ['CODIGO 2002',                r.cod2002],
+      ['PLACA',                      r.placa],
+      ['DICTAMEN',                   r.dictamen],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{wch:30},{wch:60}];
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  // ── Hoja RESUMEN: mismas columnas que la tabla HTML ──────────────────────
+  const summaryHeaders = [
+    'FECHA','TIPO','DOCUMENTO','RUC EMISOR','RAZON SOCIAL EMISOR',
+    'MONEDA','TOTAL S/','TOTAL US$','IGV S/','IGV US$','% IGV',
+    'FORMA PAGO',
+    'CODIGO 2001','GLOSA 2001','CODIGO 2002','GLOSA 2002',
+    'CON DETRACCION','CODIGO DETRACCION','% DETRACCION','MONTO DETRACCION','MONEDA DETRACCION',
+    'PLACA','OBS. GLOSA IGV','DICTAMEN'
+  ];
+  const summaryRows = results.map(r => [
+    r.fecha, r.tDoc, r.docId, r.rucEmisor, r.razonEmisor,
+    r.mon, r.totalSol, r.totalUsd, r.igvSol, r.igvUsd,
+    r.pIgv ? r.pIgv + '%' : '',
+    r.formaPago,
+    r.cod2001 || '', r.glosa2001 || '',
+    r.cod2002 || '', r.glosa2002 || '',
+    r.tieneDetraccion ? 'SI' : 'NO',
+    r.detrCodigo, r.detrPct ? r.detrPct + '%' : '', r.detrMonto, r.detrMoneda,
+    r.placa, r.amazObs || '', r.dictamen
+  ]);
+  const ws0  = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryRows]);
+  // Ancho de columnas alineado con summaryHeaders (24 columnas)
+  ws0['!cols'] = [
+    {wch:12},{wch:8},{wch:18},{wch:14},{wch:36},
+    {wch:7},{wch:12},{wch:12},{wch:10},{wch:10},{wch:7},
+    {wch:10},
+    {wch:10},{wch:55},{wch:10},{wch:55},
+    {wch:14},{wch:16},{wch:12},{wch:14},{wch:16},
+    {wch:10},{wch:40},{wch:50}
+  ];
+  XLSX.utils.book_append_sheet(wb, ws0, 'RESUMEN');
+
+  XLSX.writeFile(wb, 'REPORTE_XML_DETALLADO.xlsx');
+  log('Excel exportado. Una hoja por documento + hoja resumen.', 'done');
+}
+
+// ─── LIMPIAR / REINICIAR ──────────────────────────────────────────────────────
+
+/**
+ * clearAll
+ * Resetea completamente la aplicación: borra los archivos cargados,
+ * los resultados, las pesta&#241;as, los contadores y la consola.
+ * Vuelve al estado inicial listo para cargar nuevos XMLs.
+ */
+function clearAll() {
+  xmlFiles = []; results = [];
+  $('file-input').value = '';
+  $('file-count').textContent = '';
+  $('tab-bar').innerHTML = '';
+  $('tab-contents').innerHTML = '';
+  $('tab-area').style.display = 'none';
+  $('empty').style.display = 'flex';
+  $('progress-wrap').style.display = 'none';
+  $('progress-bar').style.width = '0%';
+  $('btn-analyze').disabled = true;
+  $('btn-export').disabled  = true;
+  ['s-total','s-ok','s-obs','s-amz','s-err'].forEach(id => $(id).textContent = '0');
+  $('console').innerHTML = '<span class="line-info">Sistema listo.</span><br/>';
+}
+
+// ─── PREFERENCIAS DE USUARIO (TEMA + FUENTE) ─────────────────────────────────
+// Se persisten en localStorage para que sobrevivan al cerrar y reabrir el archivo.
+// Clave "sst_theme"    → 'dark' | 'light'
+// Clave "sst_fontPct"  → número 80–130 (porcentaje de escala de fuente)
+
+/**
+ * applyFontScale
+ * Ajusta el tama&#241;o base de fuente modificando --fs en <html>.
+ * Todos los rem del documento escalan automáticamente.
+ * Rango: 80% = 11.2px | 100% = 14px (default) | 130% = 18.2px
+ * Guarda la preferencia en localStorage.
+ *
+ * @param {number|string} pct - Porcentaje deseado (80-130)
+ * @param {boolean} save      - Si false, solo aplica sin guardar (usado en init)
+ */
+function applyFontScale(pct, save = true) {
+  pct = Number(pct);
+  const px = (14 * pct / 100).toFixed(2);
+  document.documentElement.style.setProperty('--fs', px + 'px');
+  $('font-pct').textContent = pct + '%';
+  $('font-slider').value = pct;
+  if (save) localStorage.setItem('sst_fontPct', pct);
+}
+
+/**
+ * toggleTheme
+ * Alterna entre tema oscuro y claro:
+ *   - Agrega/quita la clase .theme-light en <html>
+ *   - Actualiza el icono y la etiqueta del botón
+ *   - Guarda la preferencia en localStorage
+ */
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('theme-light');
+  updateThemeBtn(isLight);
+  localStorage.setItem('sst_theme', isLight ? 'light' : 'dark');
+}
+
+/**
+ * updateThemeBtn
+ * Actualiza el icono y la etiqueta del botón según el tema activo.
+ * @param {boolean} isLight - true = tema claro activo
+ */
+function updateThemeBtn(isLight) {
+  $('theme-icon').textContent  = isLight ? '🌙' : '🔆'; // luna : sol
+  $('theme-label').textContent = isLight ? 'OSCURO' : 'CLARO'; // muestra a qué cambiará
+}
+
+/**
+ * initPreferences
+ * Lee las preferencias guardadas en localStorage y las aplica al cargar la página.
+ * Se llama automáticamente al final del script (ver abajo).
+ */
+function initPreferences() {
+  // Restaurar tema
+  const savedTheme = localStorage.getItem('sst_theme') || 'light';
+  if (savedTheme === 'light') {
+    document.documentElement.classList.add('theme-light');
+    updateThemeBtn(true);
+  } else {
+    updateThemeBtn(false);
+  }
+  // Restaurar tama&#241;o de fuente
+  const savedPct = parseInt(localStorage.getItem('sst_fontPct') || '100', 10);
+  applyFontScale(savedPct, false); // false = ya se está guardando, no duplicar
+}
+
+// ─── MANEJO DE ARCHIVOS ───────────────────────────────────────────────────────
+// Dos vías para cargar archivos:
+//   1. Clic en la zona de carga → dispara el <input type="file">
+//   2. Drag & Drop → el evento 'drop' en la dropzone entrega los archivos
+//
+// En ambos casos se filtra por extensión .xml y se guarda en `xmlFiles`.
+// El botón ANALIZAR se habilita automáticamente al tener al menos 1 archivo.
+
+$('file-input').addEventListener('change', e => {
+  xmlFiles = Array.from(e.target.files).filter(f=>f.name.toLowerCase().endsWith('.xml'));
+  $('file-count').textContent = xmlFiles.length ? `${xmlFiles.length} archivo(s) seleccionado(s)` : '';
+  $('btn-analyze').disabled = !xmlFiles.length;
+});
+const dz = $('dropzone');
+['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag');}));
+['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag');}));
+dz.addEventListener('drop', e => {
+  xmlFiles = Array.from(e.dataTransfer.files).filter(f=>f.name.toLowerCase().endsWith('.xml'));
+  $('file-count').textContent = xmlFiles.length ? `${xmlFiles.length} archivo(s) cargado(s)` : '';
+  $('btn-analyze').disabled = !xmlFiles.length;
+});
+
+// ─── INICIALIZACIÓN ───────────────────────────────────────────────────────────
+// Se ejecuta una vez cuando el script termina de cargarse.
+// Restaura las preferencias de usuario (tema y tama&#241;o de fuente).
+initPreferences();
+</script>
+</body>
+</html>
