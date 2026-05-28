@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.5.28">
+<meta name="version" content="1.5.28.2">
 <meta name="revised" content="2026-05-28">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -1270,6 +1270,8 @@ function parseXML(xmlText, filename) {
     } else {
       const notasDoc    = findAllByLocal(root, 'Note');
       let notaAmazFound = false;
+      // ── PASO 1: EVALUAR EL TEXTO (GLOSAS Y OBSERVACIONES) ──
+      let posibleErrorGlosa = ''; // Guardamos un posible error temporalmente
 
       for (const n of notasDoc) {
         const raw  = (n.textContent || '').trim();       // texto original del emisor
@@ -1284,8 +1286,10 @@ function parseXML(xmlText, filename) {
           amazObs = 'SEPARAR GLOSA BIENES Y SERVICIOS';
           // No asignamos cod2001 ni cod2002 y rompemos el ciclo para que quede observado
           glosa2001 = raw;   // texto original del XML (con o sin tilde, con o sin SELVA)
-          break;
+          continue;
         }
+        
+        let esValida = false;
 
         // Caso A — glosa de BIENES (código 2001)
         // Obligatorio: BIENES + AMAZONIA + CONSUMIDOS  (SELVA es opcional)
@@ -1295,7 +1299,8 @@ function parseXML(xmlText, filename) {
           //cod2001   = '2001';
           glosa2001 = raw;   // texto original del XML (con o sin tilde, con o sin SELVA)
           amazObs   = '';
-          break;
+          esValida = true;
+          //break;
         }
 
         // Caso B — glosa de SERVICIOS (código 2002)
@@ -1306,11 +1311,14 @@ function parseXML(xmlText, filename) {
           //cod2002   = '2002';
           glosa2002 = raw;   // texto original del XML (con o sin tilde, con o sin SELVA)
           amazObs   = '';
-          break;
+          esValida = true;
+          //break;
         }
 
-        // Caso C — menciona Amazonía/Selva pero la frase es incompleta o distinta
-        amazObs = 'REVISAR GLOSA AMAZ.: ' + raw.substring(0, 80) + (raw.length > 80 ? '...' : '');
+        // Si menciona Amazonía pero no cumple ni A ni B, guardamos el error temporal
+        if (!esValida) {
+          posibleErrorGlosa = 'REVISAR GLOSA AMAZ.: ' + raw.substring(0, 80) + (raw.length > 80 ? '...' : '');
+        }
       }
       
       // ── PASO 2: BÚSQUEDA EXPLÍCITA DE CÓDIGOS 2001 Y 2002 ──
@@ -1335,9 +1343,16 @@ function parseXML(xmlText, filename) {
         }
       }
 
-      // Caso D — IGV = 0 y ninguna nota menciona Amazonía
-      if (!notaAmazFound && !cod2001 && !cod2002) {
-        amazObs = 'IGV 0% SIN GLOSA AMAZONIA EN EL COMPROBANTE. REVISAR PRODUCTO Y NORMATIVIDAD PARA DETERMINAR SI CORRESPONDE O NO';
+      // ── PASO 3: VALIDACIÓN FINAL ESTRICTA (MALLA DE SEGURIDAD) ──
+      // Si llegamos aquí y el documento NO tiene ni glosa de Bienes ni glosa de Servicios
+      if (!glosa2001 && !glosa2002 && !amazObs) {
+        if (posibleErrorGlosa) {
+          // El emisor intentó poner la glosa (escribió Amazonia) pero le faltaron palabras
+          amazObs = posibleErrorGlosa;
+        } else {
+          // El emisor ni siquiera mencionó la palabra Amazonía en ninguna parte
+          amazObs = 'IGV 0% SIN GLOSA AMAZONIA EN EL COMPROBANTE';
+        }
       }
     }
   }  
