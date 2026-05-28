@@ -6,6 +6,9 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<meta name="version" content="1.5.28">
+<meta name="revised" content="2026-05-28">
+<meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Analizador XML · Amazonía</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
@@ -1252,7 +1255,6 @@ function parseXML(xmlText, filename) {
   let amazObs = '';                // observación si la glosa es incorrecta o falta
   let infoBancaria = ''; // <--- NUEVA VARIABLE PARA BANCOS
 
-
   // Lista de RUCs de Bancos exceptuados de la glosa de Amazonía
   const RUCS_BANCOS = new Set([
     '20100130204', '20100053455', '20101036813', '20516711559', '20100047218'
@@ -1265,8 +1267,6 @@ function parseXML(xmlText, filename) {
       //amazObs = 'IGV 0% es por Comisiones Bancaria';
       amazObs ='';
       infoBancaria = 'IGV 0% es por Comisiones Bancarias'; // Guardamos el mensaje
-
-
     } else {
       const notasDoc    = findAllByLocal(root, 'Note');
       let notaAmazFound = false;
@@ -1292,7 +1292,7 @@ function parseXML(xmlText, filename) {
         if (norm.includes(PATRON_2001_A) &&
             norm.includes(PATRON_2001_B) &&
             norm.includes(PATRON_2001_C)) {
-          cod2001   = '2001';
+          //cod2001   = '2001';
           glosa2001 = raw;   // texto original del XML (con o sin tilde, con o sin SELVA)
           amazObs   = '';
           break;
@@ -1303,7 +1303,7 @@ function parseXML(xmlText, filename) {
         if (norm.includes(PATRON_2002_A) &&
             norm.includes(PATRON_2002_B) &&
             norm.includes(PATRON_2002_C)) {
-          cod2002   = '2002';
+          //cod2002   = '2002';
           glosa2002 = raw;   // texto original del XML (con o sin tilde, con o sin SELVA)
           amazObs   = '';
           break;
@@ -1311,6 +1311,28 @@ function parseXML(xmlText, filename) {
 
         // Caso C — menciona Amazonía/Selva pero la frase es incompleta o distinta
         amazObs = 'REVISAR GLOSA AMAZ.: ' + raw.substring(0, 80) + (raw.length > 80 ? '...' : '');
+      }
+      
+      // ── PASO 2: BÚSQUEDA EXPLÍCITA DE CÓDIGOS 2001 Y 2002 ──
+      // A. Buscamos en el atributo 'languageLocaleID' (Regla oficial SUNAT) o si el número literal está dentro de las Notas
+      for (const n of notasDoc) {
+        const langId = n.getAttribute('languageLocaleID') || '';
+        const rawText = (n.textContent || '').trim();
+        
+        if (langId === '2001' || rawText.includes('2001')) cod2001 = '2001';
+        if (langId === '2002' || rawText.includes('2002')) cod2002 = '2002';
+      }
+
+      // B. Buscamos en cualquier nodo <cbc:ID> o <cbc:Codigo> del XML (Común en emisores con formatos personalizados)
+      if (!cod2001 || !cod2002) {
+        const allIDs = findAllByLocal(root, 'ID');
+        const allCodigos = findAllByLocal(root, 'Codigo');
+        
+        for (const node of [...allIDs, ...allCodigos]) {
+          const val = (node.textContent || '').trim();
+          if (val === '2001') cod2001 = '2001';
+          if (val === '2002') cod2002 = '2002';
+        }
       }
 
       // Caso D — IGV = 0 y ninguna nota menciona Amazonía
@@ -1362,7 +1384,6 @@ function parseXML(xmlText, filename) {
     if (dictamen === 'OK') dictamen = 'OK: ' + infoBancaria;
     else dictamen += ' | ' + infoBancaria;
   }
-
 
   // ── 12. LÍNEAS DE DETALLE (ÍTEMS) ─────────────────────────────────────────
   // Cada <cac:InvoiceLine> representa un producto o servicio facturado.
