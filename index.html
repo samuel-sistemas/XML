@@ -6,8 +6,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.5.28.2">
-<meta name="revised" content="2026-05-28">
+<meta name="version" content="1.6.2.1">
+<meta name="revised" content="2026-06-02">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Analizador XML · Amazonía</title>
@@ -717,8 +717,7 @@ const FLOTA_COMERCIO = new Set([
   "D5B842","D5C846","D5D829","A6N815","AMF353","AXK826","AXL828","B2Y942","BMY771","M6L433",
   "S2D857","8013IK","6400KM","08626K","08666K","08706K","08786K","08886K","16924K","32348K",
   "4165GK","4200GK","4474SM","4476SM","52733M","9819ZM","M80669","MB3350","S52621","S53812",
-  "S73179","M4I899",
-  "MEMT0675","B4P763","CLM917","MEMT8807"
+  "S73179","M4I899","MEMT0675","B4P763","CLM917","MEMT8807","BWO303"
 ]);
 
 /** Unión de ambas flotas: para verificar si una placa pertenece a alguna empresa */
@@ -893,64 +892,81 @@ function xText(root, localPath, fallback = '') {
 /**
  * cleanPlaca
  * Normaliza una cadena de placa vehicular:
- *   1. Convierte a mayúsculas.
- *   2. Elimina el prefijo "PLACA:", "PLACA :", "PLACA " si está presente
- *      (algunos emisores incluyen la etiqueta textual antes del valor).
- *      Ejemplos: "PLACA: MEMT-0675" → "MEMT0675"
- *               "PLACA S2D-857"    → "S2D857"
- *   3. Elimina todo carácter que no sea letra A-Z o dígito 0-9
- *      (guiones, espacios, puntos, etc.).
+ *   1. Convierte a mayúsculas y quita tildes (ej: "MATRÍCULA" -> "MATRICULA").
+ *   2. Elimina prefijos comunes como "PLACA:", "MATRICULA:", "NRO PLACA:", etc.
+ *   3. Elimina todo carácter que no sea letra o número.
  * @param {string} text - Valor crudo extraído del XML
  * @returns {string}    - Placa normalizada lista para comparar con las flotas
  */
 function cleanPlaca(text) {
   if (!text) return '';
   let s = text.toUpperCase().trim();
-  // Quitar prefijo "PLACA" seguido de ":", " :" o espacio (con espacios opcionales)
-  s = s.replace(/^PLACA\s*:?\s*/, '');
-  // Quitar separadores: guiones, espacios, guiones bajos, puntos
+  
+  // 1. Quitar tildes y diacríticos (ej. MATRÍCULA -> MATRICULA)
+  s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  
+  // 2. Eliminar prefijos comunes seguidos de espacios opcionales y un posible ":"
+  s = s.replace(/^(PLACA|MATRICULA|NRO\s+PLACA|NRO\s+MATRICULA)\s*:?\s*/, '');
+  
+  // 3. Quitar todo lo que no sea letra A-Z o dígito 0-9 (espacios, guiones, etc.)
   return s.replace(/[^A-Z0-9]/g, '');
 }
 
 /**
  * extraerPlaca
- * Intenta extraer la placa vehicular del XML usando dos estrategias:
- *   1. Buscar un nodo <Placa> en cualquier parte del árbol.
- *   2. Buscar en los nodos <Note> que mencionen "PLACA", "VEHICULO" o "UNIDAD"
- *      y extraer el patrón alfanumérico de 6 caracteres con regex.
+ * Intenta extraer la placa vehicular del XML usando cuatro estrategias:
+ *   1. Buscar nodo <Placa> dedicado.
+ *   2. Buscar en cac:AdditionalItemProperty (a nivel de ítems/líneas).
+ *   3. Buscar en sac:AdditionalProperty (a nivel de extensiones globales del documento).
+ *   4. Buscar en notas de texto libre <Note>.
  *
  * @param {Element} root - Raíz del documento XML
  * @returns {string} Placa normalizada, o '' si no se encontró
  */
 function extraerPlaca(root) {
   // ── Estrategia 1: etiqueta explícita <Placa> ──────────────────────────────
-  // Algunos emisores incluyen un nodo dedicado <Placa> con la matrícula.
   const pNodes = findAllByLocal(root, 'Placa');
   if (pNodes.length) return cleanPlaca(pNodes[0].textContent);
 
-  // ── Estrategia 2: AdditionalItemProperty con Name que mencione "Placa" ────
-  // Formato SUNAT para atributos adicionales de ítems (Código 7000 = N° Placa):
-  //   <cac:AdditionalItemProperty>
-  //     <cbc:Name>Gastos Art. 37 Renta:  Número de Placa</cbc:Name>
-  //     <cbc:NameCode>7000</cbc:NameCode>
-  //     <cbc:Value>S2D-857</cbc:Value>        ← aquí está la placa
-  //   </cac:AdditionalItemProperty>
+  // ── Estrategia 2: AdditionalItemProperty con Name que mencione "Placa" o "Matricula"
   for (const prop of findAllByLocal(root, 'AdditionalItemProperty')) {
     const nameNode = findAllByLocal(prop, 'Name')[0];
     const nameCode = findAllByLocal(prop, 'NameCode')[0]?.textContent?.trim() || '';
     const nameText = (nameNode?.textContent || '').toUpperCase();
-    // Código 7000 = N° de Placa según catálogo SUNAT, o por texto del nombre
-    if (nameCode === '7000' || nameText.includes('PLACA')) {
+    
+    const tieneKeywordPlaca = nameText.includes('PLACA') || 
+                              nameText.includes('MATRICULA') || 
+                              nameText.includes('MATRÍCULA');
+
+    if (nameCode === '7000' || tieneKeywordPlaca) {
       const val = findAllByLocal(prop, 'Value')[0]?.textContent?.trim() || '';
       if (val) return cleanPlaca(val);
     }
   }
 
-  // ── Estrategia 3: notas de texto con palabras clave ───────────────────────
-  // Algunos emisores incluyen la placa dentro de un <Note> con texto libre.
+  // ── Estrategia 3: sac:AdditionalProperty (Extensiones del documento como Divemotor)
+  for (const prop of findAllByLocal(root, 'AdditionalProperty')) {
+    const valNode = findAllByLocal(prop, 'Value')[0];
+    const valText = (valNode?.textContent || '').toUpperCase();
+    
+    // Verificamos si el valor de la propiedad menciona la placa o la matrícula
+    if (valText.includes('PLACA') || valText.includes('MATRICULA') || valText.includes('MATRÍCULA')) {
+      const placaLimpia = cleanPlaca(valText);
+      if (placaLimpia) return placaLimpia;
+    }
+  }
+
+  // ── Estrategia 4: notas de texto con palabras clave ───────────────────────
   for (const note of findAllByLocal(root, 'Note')) {
     const t = (note.textContent || '').toUpperCase();
-    if (t.includes('PLACA') || t.includes('VEHICULO') || t.includes('UNIDAD')) {
+    
+    const tieneKeywordNota = t.includes('PLACA') || 
+                             t.includes('VEHICULO') || 
+                             t.includes('UNIDAD') || 
+                             t.includes('MATRICULA') || 
+                             t.includes('MATRÍCULA');
+
+    if (tieneKeywordNota) {
       const m = t.match(/[A-Z0-9]{3}[- ]?[A-Z0-9]{3}/);
       if (m) return cleanPlaca(m[0]);
     }
