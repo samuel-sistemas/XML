@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.6.4.2">
+<meta name="version" content="1.6.4.3">
 <meta name="revised" content="2026-06-04">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -926,7 +926,7 @@ function esCandidatoPlaca(s) {
 /**
  * extraerPlaca
  * Analiza el documento XML utilizando 5 estrategias jerárquicas progresivas.
- * Soporta estándares de SUNAT, Divemotor, Nubefact, GesNet y texto en notas sin falsos positivos.
+ * Versión ultra-precisa que elimina falsos positivos de guías de remisión (como EG07-1399).
  */
 function extraerPlaca(root) {
   // ── Estrategia 1: etiqueta explícita <Placa> ──────────────────────────────
@@ -942,9 +942,9 @@ function extraerPlaca(root) {
     const nameText = (nameNode?.textContent || '').trim();
     const valText  = (valNode?.textContent || '').trim();
 
-    // Caso A (Nubefact): La placa está directamente en el Name (ej. <cbc:Name>A9A-811</cbc:Name>)
+    // Caso A (Nubefact): Si el Name coincide exactamente con nuestra flota autorizada
     const cleanedName = cleanPlaca(nameText);
-    if (FLOTA_TOTAL.has(cleanedName) || esCandidatoPlaca(cleanedName)) {
+    if (FLOTA_TOTAL.has(cleanedName)) {
       return cleanedName;
     }
 
@@ -958,9 +958,9 @@ function extraerPlaca(root) {
       if (valText) return cleanPlaca(valText);
     }
 
-    // Caso C (Respaldo): Si el valor del Value es una placa válida
+    // Caso C (Respaldo): Si el valor del Value coincide exactamente con nuestra flota
     const cleanedVal = cleanPlaca(valText);
-    if (FLOTA_TOTAL.has(cleanedVal) || esCandidatoPlaca(cleanedVal)) {
+    if (FLOTA_TOTAL.has(cleanedVal)) {
       return cleanedVal;
     }
   }
@@ -977,9 +977,9 @@ function extraerPlaca(root) {
       if (placaLimpia) return placaLimpia;
     }
 
-    // Caso B: Si el valor limpio es directamente una de nuestras placas autorizadas o un candidato firme
+    // Caso B: Si el valor limpio coincide exactamente con nuestra flota autorizada
     const cleanedVal = cleanPlaca(valText);
-    if (FLOTA_TOTAL.has(cleanedVal) || esCandidatoPlaca(cleanedVal)) {
+    if (FLOTA_TOTAL.has(cleanedVal)) {
       return cleanedVal;
     }
   }
@@ -991,16 +991,18 @@ function extraerPlaca(root) {
       const idNode = findAllByLocal(ref, 'ID')[0];
       const idText = (idNode?.textContent || '').trim();
       const idUpper = idText.toUpperCase();
+      const cleanedVal = cleanPlaca(idText);
       
-      // Caso A: Si el ID de referencia contiene palabras clave
-      if (idUpper.includes('PLACA') || idUpper.includes('MATRICULA') || idUpper.includes('MATRÍCULA')) {
-        const placaLimpia = cleanPlaca(idText);
-        if (placaLimpia) return placaLimpia;
+      // Caso A: Si el ID de referencia contiene palabras clave explícitas (ej: "PLACA: S2D-857")
+      const tieneKeywordRef = idUpper.includes('PLACA') || 
+                              idUpper.includes('MATRICULA') || 
+                              idUpper.includes('MATRÍCULA');
+      if (tieneKeywordRef) {
+        if (cleanedVal) return cleanedVal;
       }
       
-      // Caso B: Si el ID de referencia contiene directamente una placa válida
-      const cleanedVal = cleanPlaca(idText);
-      if (FLOTA_TOTAL.has(cleanedVal) || esCandidatoPlaca(cleanedVal)) {
+      // Caso B: Si no hay palabras clave, pero coincide EXACTAMENTE con nuestra flota autorizada
+      if (FLOTA_TOTAL.has(cleanedVal)) {
         return cleanedVal;
       }
     }
