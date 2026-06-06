@@ -6,8 +6,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.6.4.3">
-<meta name="revised" content="2026-06-04">
+<meta name="version" content="1.6.6.1">
+<meta name="revised" content="2026-06-06">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Analizador XML · Amazonía</title>
@@ -929,6 +929,29 @@ function esCandidatoPlaca(s) {
  * Versión ultra-precisa que elimina falsos positivos de guías de remisión (como EG07-1399).
  */
 function extraerPlaca(root) {
+  // ── Estrategia 0: <cbc:BuyerReference> a nivel raíz ──────────────────────
+  // Algunos emisores (ej. SHILCAYO GRIFO) colocan la placa en el campo
+  // BuyerReference con el formato "PLACA: B2Y-942".
+  // Es el nodo más explícito disponible → se evalúa primero.
+  // Posición en el XML: hijo directo de <Invoice>, antes de AccountingParty.
+  //
+  // Ejemplo: <cbc:BuyerReference>PLACA: B2Y-942</cbc:BuyerReference>
+  const buyerRef = xText(root, 'cbc:BuyerReference');
+  if (buyerRef) {
+    const buyerUpper = buyerRef.toUpperCase();
+    // Solo procesar si contiene una palabra clave de placa o matrícula,
+    // para evitar falsos positivos cuando BuyerReference contiene una OC u otro texto.
+    if (buyerUpper.includes('PLACA') ||
+        buyerUpper.includes('MATRICULA') ||
+        buyerUpper.includes('MATRÍCULA')) {
+      const cleaned = cleanPlaca(buyerRef);
+      if (cleaned) return cleaned;
+    }
+    // Segundo intento: si el valor limpio coincide exactamente con alguna flota
+    const cleanedDirect = cleanPlaca(buyerRef);
+    if (FLOTA_TOTAL.has(cleanedDirect)) return cleanedDirect;
+  }
+ 
   // ── Estrategia 1: etiqueta explícita <Placa> ──────────────────────────────
   const pNodes = findAllByLocal(root, 'Placa');
   if (pNodes.length) return cleanPlaca(pNodes[0].textContent);
