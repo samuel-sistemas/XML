@@ -6,8 +6,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.6.6.3">
-<meta name="revised" content="2026-06-06">
+<meta name="version" content="1.6.8.1">
+<meta name="revised" content="2026-06-08">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Analizador XML · Amazonía</title>
@@ -65,7 +65,7 @@
 
   /* HEADER */
   header {
-    padding: 16px 32px;
+    padding: 10px 15px;
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
@@ -592,6 +592,183 @@
     font-size: .55rem; padding: 1px 5px; border-radius: 99px; font-weight: 700;
   }
   .tab.active .tab-counter { background: var(--accent); color: #fff; }
+
+  /* ── BOTÓN EXPORTAR PDF (dentro de cada pestaña) ────────────────────────── */
+  .pdf-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 0 16px 0;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+  .btn-pdf {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: linear-gradient(135deg, #e11d48, #be123c);
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    padding: 9px 18px;
+    font-family: var(--sans);
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: .02em;
+    box-shadow: 0 2px 8px rgba(225,29,72,.25);
+    transition: all .15s;
+  }
+  .btn-pdf:hover { opacity: .88; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(225,29,72,.35); }
+  .btn-pdf:active { transform: translateY(0); }
+  .btn-pdf svg { flex-shrink: 0; }
+
+  /* ── BOTÓN PDF EN RESUMEN (barra flotante encima del footer) ─────────────── */
+  .summary-pdf-bar {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 20px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     ESTILOS DE IMPRESIÓN / PDF
+     Se activan solo durante window.print(). Ocultan la UI y muestran
+     únicamente el contenido relevante con colores y tipografía legible.
+  ══════════════════════════════════════════════════════════════════════════ */
+  @media print {
+    /* Ocultar todo excepto el elemento marcado para imprimir */
+    body > * { display: none !important; }
+    #pdf-print-area { display: block !important; }
+
+    /* Reset general para impresión */
+    #pdf-print-area {
+      font-family: 'Arial', sans-serif;
+      font-size: 10pt;
+      color: #000;
+      background: #fff;
+    }
+
+    /* ── RESUMEN: hoja horizontal ── */
+    #pdf-print-area.landscape { }
+    @page { margin: 12mm; }
+
+    /* Cabecera del reporte */
+    .pdf-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #1e40af;
+    }
+    .pdf-header h2 { font-size: 13pt; color: #1e40af; font-weight: bold; margin: 0; }
+    .pdf-header p  { font-size: 8pt; color: #555; margin: 2px 0 0; }
+    .pdf-header .pdf-meta { text-align: right; font-size: 8pt; color: #555; }
+
+    /* ── TABLA RESUMEN EN PDF ── */
+    .pdf-summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 7.5pt;
+    }
+    .pdf-summary-table thead tr { background: #1e40af !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pdf-summary-table th {
+      background: #1e40af !important;
+      color: #fff !important;
+      padding: 5px 4px;
+      text-align: left;
+      font-size: 7pt;
+      font-weight: bold;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .pdf-summary-table td {
+      padding: 4px;
+      border-bottom: 1px solid #e5e7eb;
+      vertical-align: top;
+    }
+    .pdf-summary-table tr:nth-child(even) td { background: #f8faff; }
+    .pdf-summary-table tr.pdf-row-obs td    { background: #fef2f2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pdf-summary-table tr.pdf-row-obs td:last-child { color: #b91c1c; font-weight: bold; }
+    .pdf-summary-table tr.pdf-row-ok  td:last-child { color: #15803d; font-weight: bold; }
+
+    /* ── FICHA INDIVIDUAL EN PDF ── */
+    .pdf-inv-header {
+      background: #1e40af !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 6px 6px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0;
+    }
+    .pdf-inv-header .pdf-doc-id   { font-size: 13pt; font-weight: bold; }
+    .pdf-inv-header .pdf-doc-sub  { font-size: 8pt; opacity: .85; margin-top: 2px; }
+    .pdf-badge-ok  { background: #dcfce7 !important; color: #15803d !important; padding: 3px 10px; border-radius: 99px; font-size: 8pt; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pdf-badge-obs { background: #fee2e2 !important; color: #b91c1c !important; padding: 3px 10px; border-radius: 99px; font-size: 8pt; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    .pdf-section {
+      border: 1px solid #e5e7eb;
+      border-top: none;
+      padding: 8px 14px;
+      page-break-inside: avoid;
+    }
+    .pdf-section:last-child { border-radius: 0 0 6px 6px; }
+    .pdf-section-title {
+      font-size: 7.5pt;
+      font-weight: bold;
+      color: #0891b2;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 7px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #e0f2fe;
+    }
+
+    /* Grid de campos 2 columnas */
+    .pdf-field-grid {
+      display: grid;
+      grid-template-columns: 160px 1fr 160px 1fr;
+      gap: 0;
+    }
+    .pdf-field-grid.cols2 {
+      grid-template-columns: 160px 1fr;
+    }
+    .pdf-label {
+      padding: 3px 8px 3px 0;
+      font-size: 7pt;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .pdf-value {
+      padding: 3px 8px 3px 4px;
+      font-size: 8pt;
+      color: #111;
+      border-bottom: 1px solid #f3f4f6;
+      word-break: break-word;
+    }
+    .pdf-value.hi   { color: #1e40af; font-weight: bold; }
+    .pdf-value.ok   { color: #15803d; }
+    .pdf-value.warn { color: #b91c1c; font-weight: bold; }
+
+    /* Tabla de ítems */
+    .pdf-items { width: 100%; border-collapse: collapse; font-size: 8pt; margin-top: 4px; }
+    .pdf-items th { background: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 4px 6px; text-align: left; font-size: 7.5pt; border-bottom: 1px solid #cbd5e1; }
+    .pdf-items th:nth-child(n+4) { text-align: right; }
+    .pdf-items td { padding: 3px 6px; border-bottom: 1px solid #f3f4f6; }
+    .pdf-items td:nth-child(n+4) { text-align: right; }
+
+    .pdf-footer-note { font-size: 7pt; color: #9ca3af; text-align: center; margin-top: 10px; }
+  }
 </style>
 </head>
 <body>
@@ -1787,6 +1964,15 @@ function buildSummary() {
       <tbody>${rows}</tbody>
     </table>
   </div>
+  <div class="summary-pdf-bar">
+    <button class="btn-pdf" onclick="exportPdfSummary()" title="Exportar resumen a PDF (hoja horizontal)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+        <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+      </svg>
+      Exportar PDF
+    </button>
+  </div>
   <div class="summary-footer">
     Haz clic en una fila para ver la ficha completa &mdash; ${results.length} documento(s)
   </div>`;
@@ -1811,8 +1997,19 @@ function buildInvoiceCard(r) {
 
   // Moneda label
   const monLabel = r.cMon === 'PEN' ? 'S/ (Soles)' : r.cMon === 'USD' ? 'US$ (Dólares)' : r.mon;
-
+  const resultIdx = results.indexOf(r);
+  
   return `
+  <div class="pdf-toolbar">
+    <button class="btn-pdf" onclick="exportPdfDetail(${resultIdx})" title="Exportar esta ficha a PDF (hoja vertical)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+        <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+      </svg>
+      Exportar PDF
+    </button>
+  </div>
+  
   <div class="invoice-card">
 
     <!-- Header band -->
@@ -2050,6 +2247,250 @@ function clearAll() {
   $('console').innerHTML = '<span class="line-info">Sistema listo.</span><br/>';
 }
 
+// ─── EXPORTACIÓN A PDF ────────────────────────────────────────────────────────
+// Técnica: se genera HTML estilizado en #pdf-print-area, se añade la clase
+// landscape/@page si corresponde, y se llama window.print().
+// Los @media print del CSS ocultan toda la UI y muestran solo esa área.
+
+/**
+ * pdfIcon
+ * SVG pequeño del icono PDF para encabezados del reporte.
+ */
+const pdfIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+
+/**
+ * nowStr — fecha y hora actual formateada para el pie del PDF.
+ */
+function nowStr() {
+  const d = new Date();
+  return d.toLocaleDateString('es-PE') + ' ' + d.toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'});
+}
+
+/**
+ * exportPdfSummary
+ * Genera el PDF del resumen en orientación HORIZONTAL (landscape).
+ * Muestra las mismas columnas que la tabla HTML de la pestaña Resumen.
+ */
+function exportPdfSummary() {
+  if (!results.length) return;
+
+  // Columnas a mostrar (compactas para hoja horizontal), escribir las columnas y luego buscarlas en const cells
+  const headers = [
+    '#','Fecha','Tipo','Documento','RUC Emisor','Raz&oacute;n Social',
+    'Mon','Total S/','Total US$','IGV S/','IGV US$','% IGV','Forma Pago',
+    'C&oacute;d.2001','C&oacute;d.2002','Detrac.','C&oacute;d.Detr.','% Detr.','Monto Detr.',
+    'Placa','Dictamen'
+  ];
+
+  const rows = results.map((r, i) => {
+    const obs = r.dictamen.includes('OBSERVADO');
+    const cls = obs ? 'pdf-row-obs' : 'pdf-row-ok';
+    const cells = [
+      i + 1,
+      r.fecha || '—',
+      r.tDoc  || '—',
+      r.docId || '—',
+      r.rucEmisor || '—',
+      (r.razonEmisor || '—').substring(0, 30),
+      r.mon   || '—',
+      r.totalSol ? fmt(r.totalSol) : (r.totalUsd ? fmt(r.totalUsd) : '—'),
+      r.totalUsd ? fmt(r.totalUsd) : '—',
+      r.igvSol   ? fmt(r.igvSol)   : '—',
+      r.igvUsd   ? fmt(r.igvUsd)   : '—',
+      r.pIgv     ? r.pIgv + '%'    : '—',
+      r.formaPago || '—',
+      r.cod2001 ? '2001' : '—',
+      r.cod2002 ? '2002' : '—',
+      r.tieneDetraccion ? 'S&Iacute;' : 'NO',
+      r.detrCodigo || '—',
+      r.detrPct    ? r.detrPct + '%' : '—',
+      r.detrMonto  ? fmt(r.detrMonto) : '—',
+      r.placa || '—',
+      obs
+        ? (r.dictamen.replace('OBSERVADO: ', '').substring(0, 50) + (r.dictamen.length > 60 ? '...' : ''))
+        : 'OK'
+    ].map(c => `<td>${c}</td>`).join('');
+    return `<tr class="${cls}">${cells}</tr>`;
+  }).join('');
+
+  const html = `
+    <style>
+      @page { size: A4 landscape; margin: 10mm; }
+    </style>
+    <div class="pdf-header">
+      <div>
+        ${pdfIcon}
+        <h2 style="display:inline;vertical-align:middle">ANALIZADOR XML &mdash; RESUMEN</h2>
+        <p>Comercio Amazon&iacute;a / Transportes Amazon&iacute;a</p>
+      </div>
+      <div class="pdf-meta">
+        <div><strong>Fecha de exportaci&oacute;n:</strong> ${nowStr()}</div>
+        <div><strong>Total documentos:</strong> ${results.length}</div>
+        <div><strong>Observados:</strong> ${results.filter(r=>r.dictamen.includes('OBSERVADO')).length}</div>
+      </div>
+    </div>
+    <table class="pdf-summary-table">
+      <thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="pdf-footer-note">
+      Generado por Analizador XML &bull; ${nowStr()} &bull; ${results.length} registro(s)
+    </div>`;
+
+  const area = $('pdf-print-area');
+  area.className = 'landscape';
+  area.innerHTML = html;
+  window.print();
+}
+
+/**
+ * exportPdfDetail
+ * Genera el PDF de una ficha individual en orientación VERTICAL (portrait).
+ * @param {number} idx - Índice del resultado en el array global `results`
+ */
+function exportPdfDetail(idx) {
+  const r = results[idx];
+  if (!r) return;
+
+  const obs = r.dictamen.includes('OBSERVADO');
+  const badgeCls  = obs ? 'pdf-badge-obs' : 'pdf-badge-ok';
+  const badgeTxt  = obs ? '&#9888; OBSERVADO' : '&#10003; OK';
+  const monLabel  = r.cMon === 'PEN' ? 'S/ (Soles)' : r.cMon === 'USD' ? 'US$ (D&oacute;lares)' : r.mon;
+
+  // Filas de ítems
+  const itemRows = r.items.length
+    ? r.items.map(it => `<tr>
+        <td>${it.n}</td>
+        <td>${it.desc || '—'}</td>
+        <td>${it.uc || '—'}</td>
+        <td>${it.qty ?? '—'}</td>
+        <td>${it.pUnit ? fmt(it.pUnit) : '—'}</td>
+        <td>${it.pTotal ? fmt(it.pTotal) : '—'}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="6" style="text-align:center;color:#9ca3af">Sin l&iacute;neas de detalle</td></tr>`;
+
+  // Helper local para campo-valor en PDF
+  const pv = (label, value, cls = '') =>
+    `<div class="pdf-label">${label}</div><div class="pdf-value ${cls}">${value || '&mdash;'}</div>`;
+
+  const html = `
+    <style>
+      @page { size: A4 portrait; margin: 12mm; }
+    </style>
+
+    <!-- Encabezado del documento -->
+    <div class="pdf-header">
+      <div>
+        ${pdfIcon}
+        <h2 style="display:inline;vertical-align:middle">FICHA DE FACTURA</h2>
+        <p>Comercio Amazon&iacute;a / Transportes Amazon&iacute;a</p>
+      </div>
+      <div class="pdf-meta">
+        <div><strong>Exportado:</strong> ${nowStr()}</div>
+        <div><strong>Archivo:</strong> ${r.file}</div>
+      </div>
+    </div>
+
+    <!-- Banda del documento -->
+    <div class="pdf-inv-header">
+      <div>
+        <div class="pdf-doc-id">${r.docId || '—'}</div>
+        <div class="pdf-doc-sub">${r.tDoc} &bull; ${r.fecha || '—'}</div>
+      </div>
+      <div class="${badgeCls}">${badgeTxt}</div>
+    </div>
+
+    <!-- EMISOR -->
+    <div class="pdf-section">
+      <div class="pdf-section-title">Datos del Emisor</div>
+      <div class="pdf-field-grid">
+        ${pv('Fecha Emisi&oacute;n', r.fecha, 'hi')}
+        ${pv('Tipo Documento', r.tDoc)}
+        ${pv('N&uacute;mero Documento', r.docId, 'hi')}
+        ${pv('Moneda', monLabel)}
+        ${pv('RUC Emisor', r.rucEmisor)}
+        ${pv('Raz&oacute;n Social Emisor', r.razonEmisor)}
+      </div>
+    </div>
+
+    <!-- RECEPTOR -->
+    <div class="pdf-section">
+      <div class="pdf-section-title">Datos del Receptor${r.rucReceptorObs ? ' &nbsp;<span style="color:#b91c1c;font-size:7pt">&#9888; RUC NO AUTORIZADO</span>' : ''}</div>
+      <div class="pdf-field-grid">
+        ${pv('RUC Receptor',            r.rucReceptor,    r.rucReceptorObs ? 'warn' : '')}
+        ${pv('Raz&oacute;n Social Receptor', r.razonReceptor,  r.rucReceptorObs ? 'warn' : '')}
+        ${pv('Direcci&oacute;n Receptor', r.dirReceptor,   r.rucReceptorObs ? 'warn' : '')}
+        ${pv('Forma de Pago',           r.formaPago)}
+        ${pv('Fecha Vencimiento',       r.fechaVenc)}
+        ${pv('Placa Veh&iacute;culo',   r.placa,          obs && r.placa ? 'warn' : '')}
+        ${pv('Placa Pertenece A',       r.placaEmpresa,   r.placaEmpresa === 'Desconocida' ? 'warn' : r.placaEmpresa ? 'ok' : '')}
+        ${pv('', '')}
+      </div>
+    </div>
+
+    <!-- ÍTEMS -->
+    <div class="pdf-section">
+      <div class="pdf-section-title">&Iacute;tems / L&iacute;neas de Detalle (${r.items.length})</div>
+      <table class="pdf-items">
+        <thead><tr>
+          <th>N&deg;</th><th>Descripci&oacute;n</th><th>U.Med</th>
+          <th>Cant.</th><th>P.Unit.</th><th>P.Total</th>
+        </tr></thead>
+        <tbody>${itemRows}</tbody>
+      </table>
+    </div>
+
+    <!-- MONTOS -->
+    <div class="pdf-section">
+      <div class="pdf-section-title">Montos e Impuestos</div>
+      <div class="pdf-field-grid">
+        ${pv('Base Imponible S/',  r.baseSol ? fmt(r.baseSol) : '')}
+        ${pv('Base Imponible US$', r.baseUsd ? fmt(r.baseUsd) : '')}
+        ${pv('IGV S/',             r.igvSol  ? fmt(r.igvSol)  : (r.mon==='S/' ? '0.00' : ''))}
+        ${pv('IGV US$',            r.igvUsd  ? fmt(r.igvUsd)  : '')}
+        ${pv('% de IGV',           r.pIgv    ? r.pIgv + '%'   : '')}
+        ${pv('Total S/',           r.totalSol ? fmt(r.totalSol) : '', 'hi')}
+        ${pv('Total US$',          r.totalUsd ? fmt(r.totalUsd) : '')}
+        ${pv('', '')}
+        ${pv('C&oacute;d. Amazon&iacute;a 2001', r.cod2001, r.cod2001 ? 'ok' : '')}
+        ${pv('Glosa 2001', r.glosa2001)}
+        ${pv('C&oacute;d. Amazon&iacute;a 2002', r.cod2002, r.cod2002 ? 'ok' : '')}
+        ${pv('Glosa 2002', r.glosa2002)}
+        ${r.amazObs ? pv('Obs. Glosa / IGV', r.amazObs, 'warn') + '<div></div>' : ''}
+      </div>
+    </div>
+
+    <!-- DETRACCIÓN -->
+    <div class="pdf-section">
+      <div class="pdf-section-title">Detracci&oacute;n</div>
+      <div class="pdf-field-grid">
+        ${pv('Con Detracci&oacute;n',          r.tieneDetraccion ? 'S&Iacute;' : 'NO', r.tieneDetraccion ? 'ok' : '')}
+        ${pv('C&oacute;d. SUNAT Detracci&oacute;n', r.detrCodigo)}
+        ${pv('Porcentaje Detracci&oacute;n',   r.detrPct   ? r.detrPct + '%'   : '')}
+        ${pv('Monto Detracci&oacute;n',        r.detrMonto ? fmt(r.detrMonto)  : '')}
+        ${pv('Moneda Detracci&oacute;n',       r.detrMoneda)}
+        ${pv('', '')}
+      </div>
+    </div>
+
+    <!-- DICTAMEN -->
+    <div class="pdf-section" style="background:${obs ? '#fef2f2' : '#f0fdf4'}">
+      <div class="pdf-section-title">Dictamen</div>
+      <div style="font-size:9pt;font-weight:bold;color:${obs ? '#b91c1c' : '#15803d'};padding:4px 0">
+        ${r.dictamen}
+      </div>
+    </div>
+
+    <div class="pdf-footer-note">
+      Generado por Analizador XML &bull; ${nowStr()} &bull; ${r.file}
+    </div>`;
+
+  const area = $('pdf-print-area');
+  area.className = '';
+  area.innerHTML = html;
+  window.print();
+}
+  
 // ─── PREFERENCIAS DE USUARIO (TEMA + FUENTE) ─────────────────────────────────
 // Se persisten en localStorage para que sobrevivan al cerrar y reabrir el archivo.
 // Clave "sst_theme"    → 'dark' | 'light'
@@ -2143,5 +2584,7 @@ dz.addEventListener('drop', e => {
 // Restaura las preferencias de usuario (tema y tama&#241;o de fuente).
 initPreferences();
 </script>
+  <!-- Área de impresión PDF (oculta en pantalla, visible solo al imprimir) -->
+  <div id="pdf-print-area" style="display:none"></div>
 </body>
 </html>
