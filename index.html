@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.6.8.2">
+<meta name="version" content="1.6.8.3">
 <meta name="revised" content="2026-06-08">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -1071,7 +1071,9 @@ function xText(root, localPath, fallback = '') {
  * Normaliza una cadena de placa vehicular:
  *   1. Convierte a mayúsculas y quita tildes (ej: "MATRÍCULA" -> "MATRICULA").
  *   2. Elimina prefijos comunes como "PLACA:", "MATRICULA:", "NRO PLACA:", etc.
- *   3. Elimina todo carácter que no sea letra o número.
+ *   3. Detectar y separar placa + kilometraje (el caso problema)
+ *   4. Elimina todo carácter que no sea letra o número.
+ *   5. Mayor a 8 digitos vuelve a consultar
  */
 function cleanPlaca(text) {
   if (!text) return '';
@@ -1081,23 +1083,48 @@ function cleanPlaca(text) {
   s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   
   // 2. Eliminar prefijos comunes seguidos de espacios opcionales y un posible ":"
-  s = s.replace(/^(PLACA|MATRICULA|NRO\s+PLACA|NRO\s+MATRICULA)\s*:?\s*/, '');
+  s = s.replace(/^(PLACA|MATRICULA|NRO\s*PLACA|NUMERO\s*DE\s*PLACA|N°\s*PLACA|PLACA\s*VEHICULO)[:\s-]*/i, '');
   
-  // 3. Quitar todo lo que no sea letra A-Z o dígito 0-9 (espacios, guiones, etc.)
-  return s.replace(/[^A-Z0-9]/g, '');
+  // 3. Detectar y separar placa + kilometraje (el caso problema)
+  // Ej: "M6L433 KM 49376", "ABC-123 KM49376", "PLACA M6L-433 ODÓMETRO 45000"
+  const kmMatch = s.match(/^([A-Z0-9-]{3,8})\s*(?:KM|KILOMETRAJE|ODOMETRO|ODOM|KMS?)\s*\d+/i);
+  if (kmMatch && kmMatch[1]) {
+    return kmMatch[1].replace(/[^A-Z0-9]/g, '');
+  }
+
+  // 4. Quitar todo lo que no sea letra A-Z o dígito 0-9 (espacios, guiones, etc.)
+  s = s.replace(/[^A-Z0-9]/g, '');
+  
+  // 5. Si después de limpiar sigue siendo muy largo (>9), intentar extraer patrón de placa
+  if (s.length > 9) {
+    const match = s.match(/[A-Z]{2,4}\d{2,4}/);
+    if (match && esCandidatoPlaca(match[0])) {
+      return match[0];
+    }
+    return ''; // Evitar devolver basura larga
+  }
+  return s
 }
 
 /**
  * esCandidatoPlaca
  * Verifica si un texto limpio cumple con la estructura lógica de una placa peruana:
- *   - Longitud exacta entre 6 y 8 caracteres.
+ *   - Longitud exacta entre 6 y 8 caracteres, debido a que usamos MEMT para MONTACARGA
  *   - Contiene obligatoriamente letras y números (evitando palabras de solo letras como UNIDAD/RODAJE).
  */
 function esCandidatoPlaca(s) {
-  const cleaned = s.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  const tieneLetra  = /[A-Z]/.test(cleaned);
-  const tieneNumero = /[0-9]/.test(cleaned);
-  return cleaned.length >= 6 && cleaned.length <= 8 && tieneLetra && tieneNumero;
+  if (!s) return false;
+  
+  const cleaned = s.replace(/[^A-Z0-9]/g, '');
+  
+  // Debe tener entre 5 y 8 caracteres
+  if (cleaned.length < 6 || cleaned.length > 8) return false;
+  
+  // Debe contener al menos una letra y un número
+  const tieneLetra = /[A-Z]/.test(cleaned);
+  const tieneNumero = /\d/.test(cleaned);
+  
+  return tieneLetra && tieneNumero;
 }
 
 /**
@@ -1998,7 +2025,6 @@ function buildInvoiceCard(r) {
   // Moneda label
   const monLabel = r.cMon === 'PEN' ? 'S/ (Soles)' : r.cMon === 'USD' ? 'US$ (Dólares)' : r.mon;
   const resultIdx = results.indexOf(r);
-  
   return `
   <div class="pdf-toolbar">
     <button class="btn-pdf" onclick="exportPdfDetail(${resultIdx})" title="Exportar esta ficha a PDF (hoja vertical)">
