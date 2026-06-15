@@ -6,14 +6,38 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.6.15.1">
+<meta name="version" content="1.6.15.2">
 <meta name="revised" content="2026-06-15">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Analizador XML · Amazonía</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <style>
+  /* Ordenamiento de tabla */
+  .summary-table th {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .summary-table th:hover {
+    background: var(--accent);
+    color: white;
+  }
+
+  .summary-table th.sorted-asc::after,
+  .summary-table th.sorted-desc::after {
+    content: ' ▲';
+    font-size: 0.7em;
+    position: absolute;
+    right: 8px;
+  }
+
+  .summary-table th.sorted-desc::after {
+    content: ' ▼';
+  }
   /* ── TEMA OSCURO (predeterminado) ────────────────────────────────────────── */
   :root {
     --bg:      #0d0f14;
@@ -460,7 +484,7 @@
     padding: 5px 12px;
     border-radius: 99px;
     font-family: var(--mono);
-    font-size: .68rem;
+    font-size: .9rem;
     font-weight: 700;
     flex-shrink: 0;
   }
@@ -1431,7 +1455,7 @@ function parseXML(xmlText, filename) {
       }
       // La primera cuota tiene la fecha de vencimiento del crédito
       if (ptMean.startsWith('Cuota') && !fechaVenc) {
-        const due = findAllByLocal(pt, 'PaymentDueDate')[0]?.textContent?.trim() || '';
+        const due = findAllByLocal(pt, 'PaymentDueDate')[0]?.textContent?.trim() || '-';
         if (due) fechaVenc = due;
       }
     }
@@ -1970,6 +1994,27 @@ function buildTabs() {
     const onlyTab = bar.querySelector('.tab');
     if (onlyTab) onlyTab.classList.add('active');
   }
+
+  // Inicializar filtro y ordenamiento
+  setTimeout(() => {
+    initSummaryFilter();
+  }, 100);
+}
+
+// Filtro en tiempo real para tabla resumen
+function initSummaryFilter() {
+  const searchInput = document.getElementById('summary-search');
+  if (!searchInput) return;
+
+  searchInput.addEventListener('input', () => {
+    const term = searchInput.value.toLowerCase().trim();
+    const rows = document.querySelectorAll('#summary-table tbody tr');
+
+    rows.forEach(row => {
+      const text = row.textContent.toLowerCase();
+      row.style.display = text.includes(term) ? '' : 'none';
+    });
+  });
 }
 
 function switchTab(id) {
@@ -1987,76 +2032,76 @@ function buildSummary() {
     const obs = r.dictamen.includes('OBSERVADO');
     return `<tr class="${obs?'row-obs':'row-ok'}" style="cursor:pointer" onclick="switchTab(${i})">
       <td>${i+1}</td>
-      <td>${esc(r.fecha)||'&#8212;'}</td>
+      <td>${esc(r.fecha)||'—'}</td>
       <td><span class="badge ${tBadge[r.tDoc]||''}">${esc(r.tDoc)}</span></td>
-      <td>${esc(r.docId)||'&#8212;'}</td>
-      <td>${esc(r.rucEmisor)||'&#8212;'}</td>
-      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis"
-          title="${esc(r.razonEmisor)}">${esc(r.razonEmisor)||'&#8212;'}</td>
+      <td>${esc(r.docId)||'—'}</td>
+      <td>${esc(r.rucEmisor)||'—'}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis" title="${esc(r.razonEmisor)}">${esc(r.razonEmisor)||'—'}</td>
       <td>${esc(r.mon)}</td>
-      <td style="text-align:right">${r.totalSol?fmt(r.totalSol):'&#8212;'}</td>
-      <td style="text-align:right">${r.totalUsd?fmt(r.totalUsd):'&#8212;'}</td>
-      <td style="text-align:right">${r.igvSol?fmt(r.igvSol):'&#8212;'}</td>
-      <td style="text-align:right">${r.igvUsd?fmt(r.igvUsd):'&#8212;'}</td>
-      <td style="text-align:right">${r.pIgv?r.pIgv+'%':'&#8212;'}</td>
-      <td>${esc(r.formaPago)||'&#8212;'}</td>
-      <td>${r.cod2001?'<span class="badge badge-amz">2001</span>':'&#8212;'}</td>
-      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;font-size:.65rem"
-          title="${esc(r.glosa2001)}">${esc(r.glosa2001)||'&#8212;'}</td>
-      <td>${r.cod2002?'<span class="badge badge-amz">2002</span>':'&#8212;'}</td>
-      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;font-size:.65rem"
-          title="${esc(r.glosa2002)}">${esc(r.glosa2002)||'&#8212;'}</td>
-      <td>${r.tieneDetraccion?'<span style="color:var(--ok);font-weight:700">S&#205;</span>':'NO'}</td>
-      <td>${esc(r.detrCodigo)||'&#8212;'}</td>
-      <td style="text-align:right">${r.detrPct?r.detrPct+'%':'&#8212;'}</td>
-      <td style="text-align:right">${r.detrMonto?fmt(r.detrMonto):'&#8212;'}</td>
-      <td>${esc(r.detrMoneda)||'&#8212;'}</td>
-      <td style="font-weight:700">${esc(r.placa)||'&#8212;'}</td>
-      <td>${obs
+      <td style="text-align:right">${r.totalSol?fmt(r.totalSol):'—'}</td>
+      <td style="text-align:right">${r.totalUsd?fmt(r.totalUsd):'—'}</td>
+      <td style="text-align:right">${r.igvSol?fmt(r.igvSol):'—'}</td>
+      <td style="text-align:right">${r.igvUsd?fmt(r.igvUsd):'—'}</td>
+      <td style="text-align:right">${r.pIgv?r.pIgv+'%':'—'}</td>
+      <td>${esc(r.formaPago)||'—'}</td>
+      <td>${r.cod2001?'<span class="badge badge-amz">2001</span>':'—'}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;font-size:.65rem" title="${esc(r.glosa2001)}">${esc(r.glosa2001)||'—'}</td>
+      <td>${r.cod2002?'<span class="badge badge-amz">2002</span>':'—'}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;font-size:.65rem" title="${esc(r.glosa2002)}">${esc(r.glosa2002)||'—'}</td>
+      <td>${r.tieneDetraccion?'<span style="color:var(--ok);font-weight:700">SÍ</span>':'NO'}</td>
+      <td>${esc(r.detrCodigo)||'—'}</td>
+      <td style="text-align:right">${r.detrPct?r.detrPct+'%':'—'}</td>
+      <td style="text-align:right">${r.detrMonto?fmt(r.detrMonto):'—'}</td>
+      <td>${esc(r.detrMoneda)||'—'}</td>
+      <td style="font-weight:700">${esc(r.placa)||'—'}</td>
+      <td>${obs 
         ? '<span style="color:var(--warn);font-weight:700">'+esc(r.dictamen)+'</span>'
         : '<span style="color:var(--ok);font-weight:700">'+esc(r.dictamen)+'</span>'}</td>
-
     </tr>`;
   }).join('');
 
-  // La tabla de resumen se estructura en 3 partes:
-  //   1. .summary-table-wrap  → contenedor con scroll propio (activa sticky thead)
-  //   2. .summary-footer      → nota al pie fuera del scroll
-  // Esto garantiza que el thead con position:sticky funcione correctamente.
-  // summary-table-wrap: tiene overflow:auto → genera el scroll y activa sticky thead
-  // summary-footer: fuera del scroll, siempre visible al pie
-  return `<div class="summary-table-wrap">
-    <table class="summary-table">
-      <thead><tr>
-        <th>#</th>
-        <th>Fecha</th>
-        <th>Tipo</th>
-        <th>Documento</th>
-        <th>RUC Emisor</th>
-        <th>Raz&#243;n Social</th>
-        <th>Mon</th>
-        <th>Total S/</th>
-        <th>Total US$</th>
-        <th>IGV S/</th>
-        <th>IGV US$</th>
-        <th>% IGV</th>
-        <th>Forma Pago</th>
-        <th>C&#243;d. 2001</th>
-        <th>Glosa 2001</th>
-        <th>C&#243;d. 2002</th>
-        <th>Glosa 2002</th>
-        <th>Detrac.</th>
-        <th>C&#243;d. Detrac.</th>
-        <th>% Detrac.</th>
-        <th>Monto Detrac.</th>
-        <th>Moneda Detrac.</th>
-        <th>Placa</th>
-        <th>Dictamen</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </div>
-  <div class="summary-pdf-bar">
+  return `
+    <div class="summary-table-wrap">
+      <!-- NUEVO: FILTRO DE BÚSQUEDA -->
+      <div style="padding: 12px 20px 8px; background: var(--surface); border-bottom: 1px solid var(--border);">
+        <input type="text" id="summary-search" 
+               placeholder="🔍 Buscar por RUC, proveedor, documento, placa o dictamen..." 
+               style="width:100%; padding:10px 14px; border-radius:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:0.6rem;">
+      </div>
+      <table class="summary-table" id="summary-table">
+        <thead>
+          <tr>
+            <th onclick="sortTable(0)" style="cursor:pointer">#</th>
+            <th onclick="sortTable(1)" style="cursor:pointer">Fecha</th>
+            <th onclick="sortTable(2)" style="cursor:pointer">Tipo</th>
+            <th onclick="sortTable(3)" style="cursor:pointer">Documento</th>
+            <th onclick="sortTable(4)" style="cursor:pointer">RUC Emisor</th>
+            <th onclick="sortTable(5)" style="cursor:pointer">Razón Social</th>
+            <th onclick="sortTable(6)" style="cursor:pointer">Mon</th>
+            <th onclick="sortTable(7)" style="cursor:pointer;text-align:right">Total S/</th>
+            <th onclick="sortTable(8)" style="cursor:pointer;text-align:right">Total US$</th>
+            <th onclick="sortTable(9)" style="cursor:pointer;text-align:right">IGV S/</th>
+            <th onclick="sortTable(10)" style="cursor:pointer;text-align:right">IGV US$</th>
+            <th onclick="sortTable(11)" style="cursor:pointer;text-align:right">% IGV</th>
+            <th onclick="sortTable(12)" style="cursor:pointer">Forma Pago</th>
+            <th onclick="sortTable(13)" style="cursor:pointer">Cód. 2001</th>
+            <th onclick="sortTable(14)" style="cursor:pointer">Glosa 2001</th>
+            <th onclick="sortTable(15)" style="cursor:pointer">Cód. 2002</th>
+            <th onclick="sortTable(16)" style="cursor:pointer">Glosa 2002</th>
+            <th onclick="sortTable(17)" style="cursor:pointer">Detrac.</th>
+            <th onclick="sortTable(18)" style="cursor:pointer">Cód. Detrac.</th>
+            <th onclick="sortTable(19)" style="cursor:pointer">% Detrac.</th>
+            <th onclick="sortTable(20)" style="cursor:pointer">Monto Detrac.</th>
+            <th onclick="sortTable(21)" style="cursor:pointer">Moneda Detrac.</th>
+            <th onclick="sortTable(22)" style="cursor:pointer">Placa</th>
+            <th onclick="sortTable(23)" style="cursor:pointer">Dictamen</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+
+    <div class="summary-pdf-bar">
     <button class="btn-pdf" onclick="exportPdfSummary()" title="Exportar resumen a PDF (hoja horizontal)">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
@@ -2064,9 +2109,10 @@ function buildSummary() {
       </svg>
       Exportar PDF
     </button>
-  </div>
-  <div class="summary-footer">
-    Haz clic en una fila para ver la ficha completa &mdash; ${results.length} documento(s)
+    </div>
+
+    <div class="summary-footer">
+      Haz clic en una fila para ver la ficha completa &mdash; ${results.length} documento(s)
   </div>`;
 }
 
@@ -2227,23 +2273,30 @@ function buildInvoiceCard(r) {
 // ─── EXPORTACIÓN A EXCEL ──────────────────────────────────────────────────────
 
 /**
- * exportExcel
- * Genera un archivo .xlsx usando la librería SheetJS (XLSX).
- * Crea una hoja por cada documento procesado (nombre = número de factura)
- * con la ficha completa en formato campo-valor, y una hoja final "RESUMEN"
- * con todos los documentos en tabla para comparación rápida.
- *
- * Los estilos (colores de encabezado) requieren xlsx con soporte de estilos
- * (xlsx.full.min.js), que es la versión incluida en este archivo.
+ * exportExcel con ExcelJS - Colores en pestañas + bordes en celdas
  */
-function exportExcel() {
+async function exportExcel() {
   if (!results.length) return;
-  const wb = XLSX.utils.book_new();
 
+  const workbook = new ExcelJS.Workbook();
+
+  // ==================== HOJAS INDIVIDUALES ====================
   results.forEach((r, idx) => {
-    const sheetName = (r.docId || `DOC_${idx+1}`).replace(/[\\/:*?[\]]/g,'_').substring(0,31);
-    const data = [
-      ['CAMPO', 'VALOR'],
+    const sheetName = (r.docId || `DOC_${idx+1}`).replace(/[\\/:*?[\]]/g, '_').substring(0, 31);
+    const ws = workbook.addWorksheet(sheetName);
+
+    // Color de pestaña
+    ws.tabColor = r.dictamen.includes('OBSERVADO') 
+      ? { argb: 'EF4444' }   // Rojo
+      : { argb: '22C55E' };  // Verde
+
+    // Cabecera
+    const header = ws.addRow(['CAMPO', 'VALOR']);
+    header.font = { bold: true, color: { argb: 'FFFFFF' } };
+    header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1E40AF' } };
+
+    // Datos
+    const dataRows = [
       ['FECHA EMISION', r.fecha],
       ['TIPO DOCUMENTO', r.tDoc],
       ['DOCUMENTO', r.docId],
@@ -2257,32 +2310,59 @@ function exportExcel() {
       ['FECHA DE VENCIMIENTO', r.fechaVenc],
       [],
       ['N°','DESCRIPCION','UNIDAD DE MEDIDA','CANTIDAD','PRECIO UNITARIO','PRECIO TOTAL'],
-      ...r.items.map(it=>[it.n,it.desc,it.uc,it.qty,it.pUnit,it.pTotal]),
+      ...r.items.map(it => [it.n, it.desc, it.uc, it.qty, it.pUnit, it.pTotal]),
       [],
-      ['BASE IMPONIBLE SOLES',      r.baseSol],
-      ['BASE IMPONIBLE DOLARES',     r.baseUsd],
-      ['CON DETRACCION',             r.tieneDetraccion ? 'SÍ' : 'NO'],
-      ['CODIGO SUNAT DETRACCION',    r.detrCodigo],
-      ['PORCENTAJE DE DETRACCION',   r.detrPct ? r.detrPct + '%' : ''],
-      ['MONTO DETRACCION',           r.detrMonto],
-      ['MONEDA DETRACCION',          r.detrMoneda],
-      ['IGV SOLES',                  r.igvSol],
-      ['IGV DOLARES',                r.igvUsd],
-      ['% DE IGV',                   r.pIgv ? r.pIgv + '%' : ''],
-      ['TOTAL SOLES',                r.totalSol],
-      ['TOTAL DOLARES',              r.totalUsd],
-      ['CODIGO 2001',                r.cod2001],
-      ['CODIGO 2002',                r.cod2002],
-      ['PLACA',                      r.placa],
-      ['DICTAMEN',                   r.dictamen],
+      ['BASE IMPONIBLE SOLES', r.baseSol],
+      ['BASE IMPONIBLE DOLARES', r.baseUsd],
+      ['CON DETRACCION', r.tieneDetraccion ? 'SÍ' : 'NO'],
+      ['CODIGO SUNAT DETRACCION', r.detrCodigo],
+      ['PORCENTAJE DE DETRACCION', r.detrPct ? r.detrPct + '%' : ''],
+      ['MONTO DETRACCION', r.detrMonto],
+      ['MONEDA DETRACCION', r.detrMoneda],
+      ['IGV SOLES', r.igvSol],
+      ['IGV DOLARES', r.igvUsd],
+      ['% DE IGV', r.pIgv ? r.pIgv + '%' : ''],
+      ['TOTAL SOLES', r.totalSol],
+      ['TOTAL DOLARES', r.totalUsd],
+      ['CODIGO 2001', r.cod2001],
+      ['CODIGO 2002', r.cod2002],
+      ['PLACA', r.placa],
+      ['DICTAMEN', r.dictamen],
     ];
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    ws['!cols'] = [{wch:30},{wch:60}];
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+    dataRows.forEach(rowData => {
+      const row = ws.addRow(rowData);
+      
+      const isObserved = r.dictamen.includes('OBSERVADO');
+      
+      row.eachCell({ includeEmpty: true }, cell => {
+        // Bordes normales en todas las celdas
+        cell.border = {
+          top:    { style: 'thin' },
+          left:   { style: 'thin' },
+          bottom: { style: 'thin' },
+          right:  { style: 'thin' }
+        };
+        
+        // Color de fondo y texto
+        if (isObserved) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEE2E2' } };
+          cell.font = { color: { argb: 'B91C1C' } };
+        } else {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'ECFDF5' } };
+          cell.font = { color: { argb: '166534' } };
+        }
+      });
+    });
+
+    ws.getColumn(1).width = 32;
+    ws.getColumn(2).width = 70;
   });
 
-  // ── Hoja RESUMEN: mismas columnas que la tabla HTML ──────────────────────
-  const summaryHeaders = [
+  // ==================== HOJA RESUMEN ====================
+  const wsResumen = workbook.addWorksheet('RESUMEN');
+  
+  const headers = [
     'FECHA','TIPO','DOCUMENTO','RUC EMISOR','RAZON SOCIAL EMISOR',
     'MONEDA','TOTAL S/','TOTAL US$','IGV S/','IGV US$','% IGV',
     'FORMA PAGO',
@@ -2290,7 +2370,13 @@ function exportExcel() {
     'CON DETRACCION','CODIGO DETRACCION','% DETRACCION','MONTO DETRACCION','MONEDA DETRACCION',
     'PLACA','OBS. GLOSA IGV','DICTAMEN'
   ];
-  const summaryRows = results.map(r => [
+
+  const headerRow = wsResumen.addRow(headers);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1E40AF' } };
+
+  results.forEach(r => {
+    const row = wsResumen.addRow([
     r.fecha, r.tDoc, r.docId, r.rucEmisor, r.razonEmisor,
     r.mon, r.totalSol, r.totalUsd, r.igvSol, r.igvUsd,
     r.pIgv ? r.pIgv + '%' : '',
@@ -2301,20 +2387,38 @@ function exportExcel() {
     r.detrCodigo, r.detrPct ? r.detrPct + '%' : '', r.detrMonto, r.detrMoneda,
     r.placa, r.amazObs || '', r.dictamen
   ]);
-  const ws0  = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryRows]);
-  // Ancho de columnas alineado con summaryHeaders (24 columnas)
-  ws0['!cols'] = [
-    {wch:12},{wch:8},{wch:18},{wch:14},{wch:36},
-    {wch:7},{wch:12},{wch:12},{wch:10},{wch:10},{wch:7},
-    {wch:10},
-    {wch:10},{wch:55},{wch:10},{wch:55},
-    {wch:14},{wch:16},{wch:12},{wch:14},{wch:16},
-    {wch:10},{wch:40},{wch:50}
-  ];
-  XLSX.utils.book_append_sheet(wb, ws0, 'RESUMEN');
 
-  XLSX.writeFile(wb, 'REPORTE_XML_DETALLADO.xlsx');
-  log('Excel exportado. Una hoja por documento + hoja resumen.', 'done');
+    const isObserved = r.dictamen.includes('OBSERVADO');
+
+    row.eachCell(cell => {
+      cell.border = {
+        top:    { style: 'thin' },
+        left:   { style: 'thin' },
+        bottom: { style: 'thin' },
+        right:  { style: 'thin' }
+      };
+
+      if (isObserved) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEE2E2' } };
+        cell.font = { color: { argb: 'B91C1C' }, bold: true };
+      } else {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'DCFCE7' } };
+        cell.font = { color: { argb: '166534' } };
+      }
+    });
+  });
+
+  wsResumen.columns.forEach(col => col.width = 18);
+
+  // Guardar archivo
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/octet-stream' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'REPORTE_XML_DETALLADO.xlsx';
+  link.click();
+
+  log('✅ Excel exportado con bordes, colores en pestañas y celdas.', 'done');
 }
 
 // ─── LIMPIAR / REINICIAR ──────────────────────────────────────────────────────
@@ -2673,6 +2777,50 @@ dz.addEventListener('drop', e => {
   $('btn-analyze').disabled = !xmlFiles.length;
 });
 
+/**
+ * Ordenamiento de columnas en la tabla Resumen
+ */
+function sortTable(colIndex) {
+  const table = document.getElementById('summary-table');
+  if (!table) return;
+
+  const tbody = table.querySelector('tbody');
+  let rows = Array.from(tbody.querySelectorAll('tr'));
+
+  // Alternar dirección
+  const currentDir = table.dataset.sortDir === 'asc' ? 'desc' : 'asc';
+  table.dataset.sortCol = colIndex;
+  table.dataset.sortDir = currentDir;
+
+  rows.sort((a, b) => {
+    let valA = a.cells[colIndex] ? a.cells[colIndex].textContent.trim() : '';
+    let valB = b.cells[colIndex] ? b.cells[colIndex].textContent.trim() : '';
+
+    // Orden numérico
+    const numA = parseFloat(valA.replace(/[^0-9.-]+/g, ''));
+    const numB = parseFloat(valB.replace(/[^0-9.-]+/g, ''));
+
+    if (!isNaN(numA) && !isNaN(numB)) {
+      return currentDir === 'asc' ? numA - numB : numB - numA;
+    }
+
+    // Orden alfabético
+    return currentDir === 'asc' 
+      ? valA.localeCompare(valB, 'es', { sensitivity: 'base' })
+      : valB.localeCompare(valA, 'es', { sensitivity: 'base' });
+  });
+
+  // Reordenar
+  rows.forEach(row => tbody.appendChild(row));
+
+  // Actualizar flechas
+  document.querySelectorAll('#summary-table th').forEach((th, i) => {
+    th.textContent = th.textContent.replace(/[▲▼]/g, '').trim();
+    if (i === colIndex) {
+      th.textContent += currentDir === 'asc' ? ' ▲' : ' ▼';
+    }
+  });
+}
 // ─── INICIALIZACIÓN ───────────────────────────────────────────────────────────
 // Se ejecuta una vez cuando el script termina de cargarse.
 // Restaura las preferencias de usuario (tema y tama&#241;o de fuente).
