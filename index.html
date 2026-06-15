@@ -6,8 +6,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.6.13.1">
-<meta name="revised" content="2026-06-13">
+<meta name="version" content="1.6.15.1">
+<meta name="revised" content="2026-06-15">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Analizador XML · Amazonía</title>
@@ -487,9 +487,6 @@
   .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
   .field-grid.cols-1 { grid-template-columns: 1fr; }
 
-  .field-row {
-    display: contents;
-  }
   .field-label {
     padding: 7px 12px 7px 0;
     font-family: var(--mono);
@@ -543,17 +540,6 @@
   .items-table .n-col { color: var(--muted); width: 36px; }
   .items-table .desc-col { white-space: normal; max-width: 260px; line-height: 1.4; }
 
-  /* Totals band */
-  .totals-band {
-    background: var(--panel);
-    border-top: 1px solid var(--border);
-    padding: 14px 24px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 28px;
-    font-family: var(--mono);
-    font-size: .72rem;
-  }
   .total-item { text-align: right; }
   .total-item .t-label { color: var(--muted); font-size: .62rem; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
   .total-item .t-value { color: var(--text); font-weight: 700; font-size: .85rem; }
@@ -986,12 +972,6 @@ function setProgress(done, total) {
  * Evita XSS si los datos del XML contienen <, >, &, ".
  */
 function esc(s) {
-  /*return String(s || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-    */
     if (!s) return '';
     // Creamos un elemento temporal para que el navegador decodifique 
     // cualquier entidad HTML (como &amp;) automáticamente a su símbolo real (&)
@@ -1012,18 +992,11 @@ function fmt(n) { return n ? Number(n).toFixed(2) : '0.00'; }
  * @param {string} val - Valor a mostrar
  * @param {string} cls - Clase CSS adicional: 'highlight' | 'warn-val' | 'ok-val' | 'dim'
  */
-/*
-function v(val, cls = '') {
-  const display  = (val === '' || val === null || val === undefined) ? '—' : esc(val);
-  const dimClass = (display === '—') ? 'dim' : cls;
-  return `<div class="field-value ${dimClass}">${display}</div>`;
-}
-  */
  function v(val, cls = '') {
   const display  = (val === '' || val === null || val === undefined) ? '—' : val;
   const dimClass = (display === '—') ? 'dim' : cls;
   // Usamos esc() solo para limpiar etiquetas peligrosas, pero manteniendo símbolos
-  return `<div class="field-value ${dimClass}">${display}</div>`;
+  return `<div class="field-value ${dimClass}">${esc(display)}</div>`;
 }
 
 
@@ -1040,6 +1013,15 @@ function v(val, cls = '') {
  * @returns {Element[]}        - Array con todos los elementos encontrados
  */
 function findAllByLocal(root, localName) {
+    if (!root) return [];
+  
+  // Intentar con querySelectorAll primero (mucho más rápido)
+  try {
+    return Array.from(root.querySelectorAll(localName));
+  } catch (e) {
+    // Fallback al recorrido manual si hay problemas de namespace
+  }
+
   const result = [];
   const walk = node => {
     for (const c of node.children) {
@@ -1193,6 +1175,7 @@ function extraerPlaca(root) {
   // Posición en el XML: hijo directo de <Invoice>, antes de AccountingParty.
   //
   // Ejemplo: <cbc:BuyerReference>PLACA: B2Y-942</cbc:BuyerReference>
+  const cachedNotes = findAllByLocal(root, 'Note');
   const buyerRef = xText(root, 'cbc:BuyerReference');
   if (buyerRef) {
     const buyerUpper = buyerRef.toUpperCase();
@@ -1223,9 +1206,11 @@ function extraerPlaca(root) {
   //   </sac:SUNATCosts>
   const lpNodes = findAllByLocal(root, 'LicensePlateID');
   if (lpNodes.length) return cleanPlaca(lpNodes[0].textContent);
-    
+  
+  const cachedAdditionalItemProperties = findAllByLocal(root, 'AdditionalItemProperty');
+ 
   // ── Estrategia 2: AdditionalItemProperty (Nivel Ítem / Nubefact y Estándar) ──
-  for (const prop of findAllByLocal(root, 'AdditionalItemProperty')) {
+  for (const prop of cachedAdditionalItemProperties) {
     const nameNode = findAllByLocal(prop, 'Name')[0];
     const valNode  = findAllByLocal(prop, 'Value')[0];
     const nameCode = findAllByLocal(prop, 'NameCode')[0]?.textContent?.trim() || '';
@@ -1256,8 +1241,9 @@ function extraerPlaca(root) {
     }
   }
 
+    const cachedAdditionalProps = findAllByLocal(root, 'AdditionalProperty');
   // ── Estrategia 3: sac:AdditionalProperty (Divemotor / Extensiones globales) ──
-  for (const prop of findAllByLocal(root, 'AdditionalProperty')) {
+  for (const prop of cachedAdditionalProps) {
     const valNode = findAllByLocal(prop, 'Value')[0];
     const valText = (valNode?.textContent || '').trim();
     const valUpper = valText.toUpperCase();
@@ -1300,7 +1286,7 @@ function extraerPlaca(root) {
   }
 
   // ── Estrategia 5: notas de texto con palabras clave ───────────────────────
-  for (const note of findAllByLocal(root, 'Note')) {
+  for (const note of cachedNotes) {
     const t = (note.textContent || '').toUpperCase();
 
     const tieneKeywordNota = t.includes('PLACA') || 
@@ -1374,6 +1360,9 @@ function parseXML(xmlText, filename) {
   const doc    = parser.parseFromString(xmlText, 'application/xml');
   const root   = doc.documentElement;
 
+  // Cache de nodos frecuentes para mejorar rendimiento en lotes grandes
+  const cachedNotes = findAllByLocal(root, 'Note');
+
   // Si el XML está malformado, parsererror aparece como nodo en el DOM.
   if (doc.querySelector('parsererror')) throw new Error('XML malformado');
 
@@ -1430,8 +1419,8 @@ function parseXML(xmlText, filename) {
   //
   // Recorremos todos los PaymentTerms para clasificarlos correctamente.
   let formaPago = '', fechaVenc = '';
-  const allPayTerms = findAllByLocal(root, 'PaymentTerms');
-  for (const pt of allPayTerms) {
+  const cachedPaymentTerms = findAllByLocal(root, 'PaymentTerms');
+  for (const pt of cachedPaymentTerms) {
     const ptId   = findAllByLocal(pt, 'ID')[0]?.textContent?.trim() || '';
     const ptMean = findAllByLocal(pt, 'PaymentMeansID')[0]?.textContent?.trim() || '';
 
@@ -1522,7 +1511,7 @@ function parseXML(xmlText, filename) {
   // languageLocaleID="2006" que dice "OPERACION SUJETA A DETRACCION".
   let detrCodigo = '', detrPct = '', detrMonto = '', detrMoneda = '';
 
-  for (const pt of allPayTerms) {
+  for (const pt of cachedPaymentTerms) {
     const ptId = findAllByLocal(pt, 'ID')[0]?.textContent?.trim() || '';
     if (ptId === 'Detraccion') {
       // Código del servicio/bien según catálogo SUNAT (ej. 022 = GPS/Rastreo)
@@ -1613,11 +1602,6 @@ function parseXML(xmlText, filename) {
   const PATRON_2002_B = 'AMAZONIA';
   const PATRON_2002_C = 'CONSUMIDOS';  // SELVA opcional
 
-  // Textos canónicos de referencia (sin tilde, versión estándar interna).
-  // La columna Glosa siempre muestra el texto REAL del XML.
-  const CANON_2001 = 'BIENES TRANSFERIDOS EN LA AMAZONIA REGION SELVA PARA SER CONSUMIDOS EN LA MISMA';
-  const CANON_2002 = 'SERVICIOS PRESTADOS EN LA AMAZONIA REGION SELVA PARA SER CONSUMIDOS EN LA MISMA';
-
   /**
    * normAmaz — normaliza un string para comparación: 
    * Limpia tildes rotas (, Ã), tildes correctas (Í, Ó) y luego lo pasa a texto plano.
@@ -1638,7 +1622,6 @@ function parseXML(xmlText, filename) {
   let cod2001 = '', cod2002 = '';  // código asignado ('2001' | '2002' | '')
   let glosa2001 = '', glosa2002 = ''; // texto real del XML para mostrar/exportar
   let amazObs = '';                // observación si la glosa es incorrecta o falta
-  let infoBancaria = ''; // <--- NUEVA VARIABLE PARA BANCOS
   let infoAdicional = '';   // ← Texto informativo para fertilizantes y bancos
 
   // Lista de RUCs de Bancos exceptuados de la glosa de Amazonía
@@ -1661,12 +1644,10 @@ function parseXML(xmlText, filename) {
     else if (RUCS_BANCOS.has(rucEmisor)) {
       // Excepción: Es un banco, el IGV 0% es por comisiones bancarias.
       // No requiere glosa de Amazonía, se queda sin observaciones.
-      //amazObs = 'IGV 0% es por Comisiones Bancaria';
       amazObs ='';
       infoAdicional = 'IGV 0% es por Comisiones Bancarias'; // Guardamos el mensaje
     } else {
-      const notasDoc    = findAllByLocal(root, 'Note');
-      let notaAmazFound = false;
+      const notasDoc    = cachedNotes
       // ── PASO 1: EVALUAR EL TEXTO (GLOSAS Y OBSERVACIONES) ──
       let posibleErrorGlosa = ''; // Guardamos un posible error temporalmente
 
@@ -1676,7 +1657,6 @@ function parseXML(xmlText, filename) {
 
         // ¿Esta nota menciona Amazonía o Selva?
         if (!norm.includes('AMAZONIA') && !norm.includes('SELVA')) continue;
-        notaAmazFound = true;
 
         // ── NUEVA REGLA: Si mezclan Bienes y Servicios en la misma glosa ──
         if (norm.includes('BIENES') && norm.includes('SERVICIOS')) {
@@ -1791,11 +1771,14 @@ function parseXML(xmlText, filename) {
   
   let dictamen = obsArr.length ? 'OBSERVADO: ' + obsArr.join(' | ') : 'OK';
   
-  // Si hay mensaje de banco, lo pegamos al dictamen
-  if (infoBancaria) {
-    if (dictamen === 'OK') dictamen = 'OK: ' + infoBancaria;
-    else dictamen += ' | ' + infoBancaria;
+  // Agregar info adicional al dictamen cuando corresponda
+  if (infoAdicional) {
+  if (dictamen === 'OK') {
+    dictamen = 'OK: ' + infoAdicional;
+  } else {
+    dictamen += ' | ' + infoAdicional;
   }
+}
 
   // ── 13. RESULTADO ─────────────────────────────────────────────────────────
   // Se devuelven todos los campos necesarios para la vista y el Excel.
@@ -1876,18 +1859,7 @@ async function analyze() {
       // 5 LIMPIEZA PREVENTIVA (SANITIZER) ───────────────────
       // Esta sección repara los corchetes escapados y errores de formato 
       // de emisores como Ransa antes de que ingresen al parser.
-      if (text) {
-        // Quitar barras invertidas en el CDATA (corrige el error de Ransa)
-        text = text.replace(/<!\\\[CDATA\\\[/g, '<![CDATA[');
-        text = text.replace(/\\\]\\\]>/g, ']]>');
-        
-        // Escapar símbolos '&' sueltos que rompen el XML (ej: 'MOLINOS & CIA')
-        text = text.replace(/& /g, '&amp; ');
-        
-        // Corregir cabeceras de schemaLocation mal escritas
-        text = text.replace(/xmlns:schemaLocation/g, 'xsi:schemaLocation');
-      }
-      // ───────────────────────────────────────────────────────────────────────
+      text = sanitizeXML(text);
 
       results.push(parseXML(text, file.name));
       log(`✓ ${file.name}`, 'ok');
@@ -1914,8 +1886,35 @@ async function analyze() {
  * con los datos del array global `results` después del análisis.
  */
 function updateStats() {
+  const obs = results.filter(r => r.dictamen.includes('OBSERVADO')).length;
+
+  // Contador más preciso de Amazonía (solo documentos que realmente aplican el régimen)
+  const amz = results.filter(r => {
+    // 1. Tiene glosa correcta (2001 o 2002)
+    if (r.cod2001 || r.cod2002) return true;
+
+    // Caso 2: Tiene glosa con palabras clave (nuevo requisito)
+    if (r.glosa2001 && r.glosa2001.toUpperCase().includes('BIENES')) return true;
+    if (r.glosa2002 && r.glosa2002.toUpperCase().includes('SERVICIOS')) return true;
+
+    // 3. Tiene observación relacionada con glosa Amazonía
+    if (r.amazObs) {
+      const obsText = (r.amazObs || '').toUpperCase();
+      // Solo contar si menciona glosa o falta de glosa Amazonía
+      if (obsText.includes('GLOSA AMAZ') || 
+          obsText.includes('SIN GLOSA AMAZONIA') || 
+          obsText.includes('REVISAR GLOSA')) {
+        return true;
+      }
+    }
+
+    return false;
+  }).length;
+
+  /*
   const obs = results.filter(r=>r.dictamen.includes('OBSERVADO')).length;
   const amz = results.filter(r=>r.cod2001||r.cod2002||r.amazObs).length; // incluye glosas con obs
+  */
   $('s-total').textContent = results.length;
   $('s-ok').textContent    = results.length - obs;
   $('s-obs').textContent   = obs;
