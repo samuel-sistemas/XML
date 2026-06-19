@@ -6,8 +6,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.6.15.2">
-<meta name="revised" content="2026-06-15">
+<meta name="version" content="1.6.19.1">
+<meta name="revised" content="2026-06-19">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Analizador XML · Amazonía</title>
@@ -2383,6 +2383,7 @@ async function exportExcel() {
     r.formaPago,
     r.cod2001 || '', r.glosa2001 || '',
     r.cod2002 || '', r.glosa2002 || '',
+    r.cod2006 || '', r.glosa2006 || '', 
     r.tieneDetraccion ? 'SI' : 'NO',
     r.detrCodigo, r.detrPct ? r.detrPct + '%' : '', r.detrMonto, r.detrMoneda,
     r.placa, r.amazObs || '', r.dictamen
