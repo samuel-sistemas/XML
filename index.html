@@ -6,8 +6,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.6.19.1">
-<meta name="revised" content="2026-06-19">
+<meta name="version" content="1.6.20.1">
+<meta name="revised" content="2026-06-20">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Analizador XML · Amazonía</title>
@@ -15,7 +15,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <style>
-  /* Ordenamiento de tabla */
+    /* Ordenamiento de tabla */
   .summary-table th {
     position: relative;
     cursor: pointer;
@@ -98,11 +98,11 @@
     flex-shrink: 0;
   }
   .logo {
-    width: 36px; height: 36px;
+    width: 60px; height: 36px;
     background: linear-gradient(135deg, var(--accent), var(--accent2));
     border-radius: 9px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 15px; font-weight: 800; color: #fff; flex-shrink: 0;
+    font-size: 20px; font-weight: 600; color: #fff; flex-shrink: 0;
   }
   header h1 { font-size: 1.15rem; font-weight: 800; letter-spacing: -.02em; }
   header span { font-size: .75rem; color: var(--muted); font-family: var(--mono); }
@@ -227,7 +227,31 @@
     flex-direction: column;
     gap: 18px;
     overflow-y: auto;
+    transition: width .3s cubic-bezier(.4,0,.2,1), padding .3s, border .3s;
   }
+  aside.collapsed {
+    width: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    border-right: none !important;
+  }
+  #sidebar-toggle {
+    flex-shrink: 0;
+    width: 20px;
+    background: var(--surface);
+    border: none;
+    border-right: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 14px;
+    font-size: .8rem;
+    transition: background .15s, color .15s;
+    user-select: none;
+  }
+  #sidebar-toggle:hover { background: var(--panel); color: var(--accent); }
   .section-label {
     font-family: var(--mono);
     font-size: .72rem;
@@ -603,7 +627,7 @@
   }
   .tab.active .tab-counter { background: var(--accent); color: #fff; }
 
-  /* ── BOTÓN EXPORTAR PDF (dentro de cada pestaña) ────────────────────────── */
+    /* ── BOTÓN EXPORTAR PDF (dentro de cada pestaña) ────────────────────────── */
   .pdf-toolbar {
     display: flex;
     justify-content: flex-end;
@@ -784,7 +808,7 @@
 <body>
 
 <header>
-  <div class="logo">X</div>
+  <div class="logo">FAC</div>
   <div>
     <h1>ANALIZADOR XML <span>&middot; Comercio Amazon&#237;a / Transportes Amazon&#237;a</span></h1>
   </div>
@@ -855,6 +879,7 @@
       <div id="console"><span class="line-info">Sistema listo. Cargue archivos XML para comenzar.</span><br/></div>
     </div>
   </aside>
+  <button id="sidebar-toggle" onclick="toggleSidebar()" title="Contraer panel">◀</button>
 
   <!-- MAIN -->
   <main>
@@ -928,7 +953,7 @@ const TRANSPORTE_PASAJEROS_EXENTO = new Set([
   "SERVICIO DE TRANSPORTE", "TRANSPORTE DE LA RUTA", "TRANSPORTE DE PASAJEROS",
   "POR EL SERVICIO DE TRANSPORTE"
 ]);
-  
+
 /**
  * getRUCEmpresa
  * Devuelve el RUC de la empresa propietaria de la placa, o null si es desconocida.
@@ -1007,7 +1032,10 @@ function esc(s) {
  * fmt
  * Formatea un número con 2 decimales. Si es falsy devuelve '0.00'.
  */
-function fmt(n) { return n ? Number(n).toFixed(2) : '0.00'; }
+function fmt(n) {
+  if (!n && n !== 0) return '0.00';
+  return Number(n).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 /**
  * v  (field value)
@@ -1037,7 +1065,7 @@ function fmt(n) { return n ? Number(n).toFixed(2) : '0.00'; }
  * @returns {Element[]}        - Array con todos los elementos encontrados
  */
 function findAllByLocal(root, localName) {
-    if (!root) return [];
+  if (!root) return [];
   
   // Intentar con querySelectorAll primero (mucho más rápido)
   try {
@@ -1185,7 +1213,7 @@ function esServicioTransportePasajeros(items) {
   }
   return false;
 }
-  
+
 /**
  * extraerPlaca
  * Analiza el documento XML utilizando 5 estrategias jerárquicas progresivas.
@@ -1215,7 +1243,7 @@ function extraerPlaca(root) {
     const cleanedDirect = cleanPlaca(buyerRef);
     if (FLOTA_TOTAL.has(cleanedDirect)) return cleanedDirect;
   }
- 
+
   // ── Estrategia 1: etiqueta explícita <Placa> ──────────────────────────────
   const pNodes = findAllByLocal(root, 'Placa');
   if (pNodes.length) return cleanPlaca(pNodes[0].textContent);
@@ -1230,9 +1258,9 @@ function extraerPlaca(root) {
   //   </sac:SUNATCosts>
   const lpNodes = findAllByLocal(root, 'LicensePlateID');
   if (lpNodes.length) return cleanPlaca(lpNodes[0].textContent);
-  
+
   const cachedAdditionalItemProperties = findAllByLocal(root, 'AdditionalItemProperty');
- 
+
   // ── Estrategia 2: AdditionalItemProperty (Nivel Ítem / Nubefact y Estándar) ──
   for (const prop of cachedAdditionalItemProperties) {
     const nameNode = findAllByLocal(prop, 'Name')[0];
@@ -1264,8 +1292,8 @@ function extraerPlaca(root) {
       return cleanedVal;
     }
   }
-
-    const cachedAdditionalProps = findAllByLocal(root, 'AdditionalProperty');
+  
+  const cachedAdditionalProps = findAllByLocal(root, 'AdditionalProperty');
   // ── Estrategia 3: sac:AdditionalProperty (Divemotor / Extensiones globales) ──
   for (const prop of cachedAdditionalProps) {
     const valNode = findAllByLocal(prop, 'Value')[0];
@@ -1383,7 +1411,7 @@ function parseXML(xmlText, filename) {
   const parser = new DOMParser();
   const doc    = parser.parseFromString(xmlText, 'application/xml');
   const root   = doc.documentElement;
-
+  
   // Cache de nodos frecuentes para mejorar rendimiento en lotes grandes
   const cachedNotes = findAllByLocal(root, 'Note');
 
@@ -1689,9 +1717,9 @@ function parseXML(xmlText, filename) {
           glosa2001 = raw;   // texto original del XML (con o sin tilde, con o sin SELVA)
           continue;
         }
-        
-        let esValida = false;
 
+        let esValida = false;
+        
         // Caso A — glosa de BIENES (código 2001)
         // Obligatorio: BIENES + AMAZONIA + CONSUMIDOS  (SELVA es opcional)
         if (norm.includes(PATRON_2001_A) &&
@@ -1720,8 +1748,8 @@ function parseXML(xmlText, filename) {
         if (!esValida) {
           posibleErrorGlosa = 'REVISAR GLOSA AMAZ.: ' + raw.substring(0, 80) + (raw.length > 80 ? '...' : '');
         }
-      }
-      
+      }      
+
       // ── PASO 2: BÚSQUEDA EXPLÍCITA DE CÓDIGOS 2001 Y 2002 ──
       // A. Buscamos en el atributo 'languageLocaleID' (Regla oficial SUNAT) o si el número literal está dentro de las Notas
       for (const n of notasDoc) {
@@ -1794,15 +1822,43 @@ function parseXML(xmlText, filename) {
   if (amazObs)        obsArr.push(amazObs);
   
   let dictamen = obsArr.length ? 'OBSERVADO: ' + obsArr.join(' | ') : 'OK';
-  
+
   // Agregar info adicional al dictamen cuando corresponda
   if (infoAdicional) {
-  if (dictamen === 'OK') {
-    dictamen = 'OK: ' + infoAdicional;
-  } else {
-    dictamen += ' | ' + infoAdicional;
+    if (dictamen === 'OK') {
+      dictamen = 'OK: ' + infoAdicional;
+    } else {
+      dictamen += ' | ' + infoAdicional;
+    }
   }
-}
+  // ── 13. CÓDIGO 2006 - DETRACCION ─────────────────────────────────────
+  let cod2006 = '';
+  let glosa2006 = '';
+
+  for (const n of cachedNotes) {
+    const langId = n.getAttribute('languageLocaleID') || '';
+    const rawText = (n.textContent || '').trim();
+    
+    if (langId === '2006') {
+      cod2006 = '2006';
+      glosa2006 = rawText;
+      break;
+    }
+  }
+
+  // Fallback: buscar por texto aunque no tenga languageLocaleID
+  if (!cod2006) {
+    for (const n of cachedNotes) {
+      const textNorm = (n.textContent || '').toUpperCase()
+                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (textNorm.includes('OPERACION SUJETA A DETRACCION') || 
+          textNorm.includes('SUJETA A DETRACCION')) {
+        cod2006 = '2006';
+        glosa2006 = n.textContent.trim();
+        break;
+      }
+    }
+  }
 
   // ── 13. RESULTADO ─────────────────────────────────────────────────────────
   // Se devuelven todos los campos necesarios para la vista y el Excel.
@@ -1826,11 +1882,12 @@ function parseXML(xmlText, filename) {
     totalUsd: mon === 'US$' ? total          : 0,
     baseSol:  mon === 'S/'  ? baseImponible  : 0,
     baseUsd:  mon === 'US$' ? baseImponible  : 0,
-    cod2001, glosa2001, cod2002, glosa2002, amazObs, infoAdicional, placa, placaEmpresa, dictamen,
+    cod2001, glosa2001, cod2002, cod2006, 
+    glosa2002, glosa2006,amazObs, infoAdicional, 
+    placa, placaEmpresa, dictamen,
     items, file: filename
   };
 }
-
 // ─── ANÁLISIS PRINCIPAL ───────────────────────────────────────────────────────
 
 /**
@@ -1892,7 +1949,7 @@ async function analyze() {
       log(`✗ ${file.name}: ${e.message}`, 'err');
     }
     setProgress(i+1, xmlFiles.length);
-    if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+    if (i > 0 && i % 5 === 0) await new Promise(r => setTimeout(r, 0));
   }
 
   updateStats();
@@ -2048,6 +2105,8 @@ function buildSummary() {
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;font-size:.65rem" title="${esc(r.glosa2001)}">${esc(r.glosa2001)||'—'}</td>
       <td>${r.cod2002?'<span class="badge badge-amz">2002</span>':'—'}</td>
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;font-size:.65rem" title="${esc(r.glosa2002)}">${esc(r.glosa2002)||'—'}</td>
+      <td>${r.cod2006?'<span class="badge badge-amz">2006</span>':'—'}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;font-size:.65rem" title="${esc(r.glosa2006)}">${esc(r.glosa2006)||'—'}</td>
       <td>${r.tieneDetraccion?'<span style="color:var(--ok);font-weight:700">SÍ</span>':'NO'}</td>
       <td>${esc(r.detrCodigo)||'—'}</td>
       <td style="text-align:right">${r.detrPct?r.detrPct+'%':'—'}</td>
@@ -2088,13 +2147,15 @@ function buildSummary() {
             <th onclick="sortTable(14)" style="cursor:pointer">Glosa 2001</th>
             <th onclick="sortTable(15)" style="cursor:pointer">Cód. 2002</th>
             <th onclick="sortTable(16)" style="cursor:pointer">Glosa 2002</th>
-            <th onclick="sortTable(17)" style="cursor:pointer">Detrac.</th>
-            <th onclick="sortTable(18)" style="cursor:pointer">Cód. Detrac.</th>
-            <th onclick="sortTable(19)" style="cursor:pointer">% Detrac.</th>
-            <th onclick="sortTable(20)" style="cursor:pointer">Monto Detrac.</th>
-            <th onclick="sortTable(21)" style="cursor:pointer">Moneda Detrac.</th>
-            <th onclick="sortTable(22)" style="cursor:pointer">Placa</th>
-            <th onclick="sortTable(23)" style="cursor:pointer">Dictamen</th>
+            <th onclick="sortTable(17)" style="cursor:pointer">Cód. 2006</th>
+            <th onclick="sortTable(18)" style="cursor:pointer">Glosa 2006</th>
+            <th onclick="sortTable(19)" style="cursor:pointer">Detrac.</th>
+            <th onclick="sortTable(20)" style="cursor:pointer">Cód. Detrac.</th>
+            <th onclick="sortTable(21)" style="cursor:pointer">% Detrac.</th>
+            <th onclick="sortTable(22)" style="cursor:pointer">Monto Detrac.</th>
+            <th onclick="sortTable(23)" style="cursor:pointer">Moneda Detrac.</th>
+            <th onclick="sortTable(24)" style="cursor:pointer">Placa</th>
+            <th onclick="sortTable(25)" style="cursor:pointer">Dictamen</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -2113,7 +2174,7 @@ function buildSummary() {
 
     <div class="summary-footer">
       Haz clic en una fila para ver la ficha completa &mdash; ${results.length} documento(s)
-  </div>`;
+    </div>`;
 }
 
 // ─── INVOICE CARD ─────────────────────────────────────────────────────────────
@@ -2137,7 +2198,7 @@ function buildInvoiceCard(r) {
   const monLabel = r.cMon === 'PEN' ? 'S/ (Soles)' : r.cMon === 'USD' ? 'US$ (Dólares)' : r.mon;
   const resultIdx = results.indexOf(r);
   return `
-  <div class="pdf-toolbar">
+    <div class="pdf-toolbar">
     <button class="btn-pdf" onclick="exportPdfDetail(${resultIdx})" title="Exportar esta ficha a PDF (hoja vertical)">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
@@ -2146,7 +2207,7 @@ function buildInvoiceCard(r) {
       Exportar PDF
     </button>
   </div>
-  
+
   <div class="invoice-card">
 
     <!-- Header band -->
@@ -2239,6 +2300,9 @@ function buildInvoiceCard(r) {
         <div class="field-label">Glosa 2001</div>${v(r.glosa2001)}
         <div class="field-label">C&#243;digo Amazon&#237;a 2002</div>${v(r.cod2002, r.cod2002?'ok-val':'')}
         <div class="field-label">Glosa 2002</div>${v(r.glosa2002)}
+        <div class="field-label">C&#243;digo Detracci&#243;n 2006</div>${v(r.cod2006, r.cod2006?'ok-val':'')}
+        <div class="field-label">Glosa 2006</div>${v(r.glosa2006)}
+
         <!-- Observación: aparece si IGV=0 y la glosa es incorrecta o falta -->
         <div class="field-label">Obs. Glosa - IGV.</div>${v(r.amazObs, r.amazObs?'warn-val':'')}
         ${r.infoAdicional ? `
@@ -2326,15 +2390,16 @@ async function exportExcel() {
       ['TOTAL DOLARES', r.totalUsd],
       ['CODIGO 2001', r.cod2001],
       ['CODIGO 2002', r.cod2002],
+      ['CODIGO 2006', r.cod2006],
       ['PLACA', r.placa],
       ['DICTAMEN', r.dictamen],
     ];
 
     dataRows.forEach(rowData => {
       const row = ws.addRow(rowData);
-      
+
       const isObserved = r.dictamen.includes('OBSERVADO');
-      
+
       row.eachCell({ includeEmpty: true }, cell => {
         // Bordes normales en todas las celdas
         cell.border = {
@@ -2343,7 +2408,7 @@ async function exportExcel() {
           bottom: { style: 'thin' },
           right:  { style: 'thin' }
         };
-        
+
         // Color de fondo y texto
         if (isObserved) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FEE2E2' } };
@@ -2352,6 +2417,8 @@ async function exportExcel() {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'ECFDF5' } };
           cell.font = { color: { argb: '166534' } };
         }
+
+        if (typeof cell.value === 'number') cell.numFmt = '#,##0.00';
       });
     });
 
@@ -2366,7 +2433,7 @@ async function exportExcel() {
     'FECHA','TIPO','DOCUMENTO','RUC EMISOR','RAZON SOCIAL EMISOR',
     'MONEDA','TOTAL S/','TOTAL US$','IGV S/','IGV US$','% IGV',
     'FORMA PAGO',
-    'CODIGO 2001','GLOSA 2001','CODIGO 2002','GLOSA 2002',
+    'CODIGO 2001','GLOSA 2001','CODIGO 2002','GLOSA 2002','CÓD 2006','GLOSA 2006',
     'CON DETRACCION','CODIGO DETRACCION','% DETRACCION','MONTO DETRACCION','MONEDA DETRACCION',
     'PLACA','OBS. GLOSA IGV','DICTAMEN'
   ];
@@ -2383,7 +2450,7 @@ async function exportExcel() {
     r.formaPago,
     r.cod2001 || '', r.glosa2001 || '',
     r.cod2002 || '', r.glosa2002 || '',
-    r.cod2006 || '', r.glosa2006 || '', 
+    r.cod2006 || '', r.glosa2006 || '',  // ← agregar esta línea
     r.tieneDetraccion ? 'SI' : 'NO',
     r.detrCodigo, r.detrPct ? r.detrPct + '%' : '', r.detrMonto, r.detrMoneda,
     r.placa, r.amazObs || '', r.dictamen
@@ -2406,6 +2473,11 @@ async function exportExcel() {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'DCFCE7' } };
         cell.font = { color: { argb: '166534' } };
       }
+    });
+
+    // Formato numérico con separador de miles: TOTAL S/, TOTAL US$, IGV S/, IGV US$, MONTO DETRACCION
+    [7, 8, 9, 10, 22].forEach(col => {
+      row.getCell(col).numFmt = '#,##0.00';
     });
   });
 
@@ -2689,7 +2761,7 @@ function exportPdfDetail(idx) {
   area.innerHTML = html;
   window.print();
 }
-  
+
 // ─── PREFERENCIAS DE USUARIO (TEMA + FUENTE) ─────────────────────────────────
 // Se persisten en localStorage para que sobrevivan al cerrar y reabrir el archivo.
 // Clave "sst_theme"    → 'dark' | 'light'
@@ -2753,7 +2825,22 @@ function initPreferences() {
   }
   // Restaurar tama&#241;o de fuente
   const savedPct = parseInt(localStorage.getItem('sst_fontPct') || '100', 10);
-  applyFontScale(savedPct, false); // false = ya se está guardando, no duplicar
+  applyFontScale(savedPct, false);
+
+  if (localStorage.getItem('sst_sidebar_collapsed') === 'true') {
+    document.querySelector('aside').classList.add('collapsed');
+    $('sidebar-toggle').textContent = '▶';
+    $('sidebar-toggle').title = 'Expandir panel';
+  }
+}
+
+function toggleSidebar() {
+  const aside = document.querySelector('aside');
+  const btn   = $('sidebar-toggle');
+  const collapsed = aside.classList.toggle('collapsed');
+  btn.textContent = collapsed ? '▶' : '◀';
+  btn.title       = collapsed ? 'Expandir panel' : 'Contraer panel';
+  localStorage.setItem('sst_sidebar_collapsed', collapsed);
 }
 
 // ─── MANEJO DE ARCHIVOS ───────────────────────────────────────────────────────
