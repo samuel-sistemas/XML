@@ -6,8 +6,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.6.20.1">
-<meta name="revised" content="2026-06-20">
+<meta name="version" content="1.6.30.1">
+<meta name="revised" content="2026-06-30">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Analizador XML · Amazonía</title>
@@ -106,6 +106,10 @@
   }
   header h1 { font-size: 1.15rem; font-weight: 800; letter-spacing: -.02em; }
   header span { font-size: .75rem; color: var(--muted); font-family: var(--mono); }
+  .app-version {
+    display: block; font-family: var(--mono); font-size: .58rem;
+    color: var(--muted); opacity: .5; letter-spacing: .07em; margin-top: 2px;
+  }
 
   /* ── CONTROLES DE CABECERA (FUENTE + TEMA) ─────────────────────────────── */
   .header-controls {
@@ -811,6 +815,7 @@
   <div class="logo">FAC</div>
   <div>
     <h1>ANALIZADOR XML <span>&middot; Comercio Amazon&#237;a / Transportes Amazon&#237;a</span></h1>
+    <span id="app-version" class="app-version"></span>
   </div>
   <!-- Controles del encabezado: tama&#241;o de texto y selector de tema -->
   <div class="header-controls">
@@ -1258,6 +1263,32 @@ function extraerPlaca(root) {
   //   </sac:SUNATCosts>
   const lpNodes = findAllByLocal(root, 'LicensePlateID');
   if (lpNodes.length) return cleanPlaca(lpNodes[0].textContent);
+
+  // ── Estrategia 1.6: <cbc:AdditionalInformation> dentro de Item ──────────────
+  // Algunos emisores (ej. Automotores Pakatnamu) colocan la placa en este campo:
+  //   <cbc:AdditionalInformation><![CDATA[Placa: M6L433, Referencia: 2367831]]></cbc:AdditionalInformation>
+  for (const node of findAllByLocal(root, 'AdditionalInformation')) {
+    const text = (node.textContent || '').trim();
+    const textUpper = text.toUpperCase();
+    if (textUpper.includes('PLACA') || textUpper.includes('MATRICULA') || textUpper.includes('MATRÍCULA')) {
+      // Extrae el valor inmediatamente después de "PLACA:" o variantes
+      const m = text.match(/PLACA[:\s-]+([A-Z0-9-]{5,9})/i);
+      if (m) {
+        const c = cleanPlaca(m[1]);
+        if (c) return c;
+      }
+      // Fallback: buscar por partes separadas por coma
+      for (const part of text.split(',')) {
+        if (part.toUpperCase().includes('PLACA')) {
+          const c = cleanPlaca(part);
+          if (esCandidatoPlaca(c)) return c;
+        }
+      }
+    }
+    // Si el texto completo limpio coincide con alguna flota registrada
+    const cleanedFull = cleanPlaca(text);
+    if (FLOTA_TOTAL.has(cleanedFull)) return cleanedFull;
+  }
 
   const cachedAdditionalItemProperties = findAllByLocal(root, 'AdditionalItemProperty');
 
@@ -2832,6 +2863,9 @@ function initPreferences() {
     $('sidebar-toggle').textContent = '▶';
     $('sidebar-toggle').title = 'Expandir panel';
   }
+
+  const vMeta = document.querySelector('meta[name="version"]');
+  if (vMeta) $('app-version').textContent = 'v' + vMeta.getAttribute('content');
 }
 
 function toggleSidebar() {
