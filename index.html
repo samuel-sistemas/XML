@@ -6,8 +6,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.6.30.1">
-<meta name="revised" content="2026-06-30">
+<meta name="version" content="1.7.15.1">
+<meta name="revised" content="2026-07-15">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Analizador XML · Amazonía</title>
@@ -1441,13 +1441,27 @@ function parseXML(xmlText, filename) {
   // DOMParser convierte el string XML en un árbol de nodos navegable.
   const parser = new DOMParser();
   const doc    = parser.parseFromString(xmlText, 'application/xml');
-  const root   = doc.documentElement;
-  
-  // Cache de nodos frecuentes para mejorar rendimiento en lotes grandes
-  const cachedNotes = findAllByLocal(root, 'Note');
 
   // Si el XML está malformado, parsererror aparece como nodo en el DOM.
   if (doc.querySelector('parsererror')) throw new Error('XML malformado');
+
+  let root = doc.documentElement;
+
+  // Algunos ERPs (ej. Sovos/PPL) envuelven el comprobante UBL real dentro de
+  // contenedores propios, ej: <PPLDocument><ClientDocument><Invoice>...
+  // xText() navega rutas relativas hijo-por-hijo desde `root`, así que si la
+  // raíz del XML no es ya el comprobante, buscamos el nodo real entre los
+  // descendientes para que esas rutas relativas vuelvan a funcionar.
+  const TIPOS_COMPROBANTE = ['Invoice', 'CreditNote', 'DebitNote'];
+  if (!TIPOS_COMPROBANTE.includes(root.localName)) {
+    for (const tipo of TIPOS_COMPROBANTE) {
+      const found = findAllByLocal(root, tipo)[0];
+      if (found) { root = found; break; }
+    }
+  }
+
+  // Cache de nodos frecuentes para mejorar rendimiento en lotes grandes
+  const cachedNotes = findAllByLocal(root, 'Note');
 
   // ── 2. CABECERA DEL DOCUMENTO ──────────────────────────────────────────────
   // Tipo de comprobante: 01=FAC, 03=BOLETA, 14=RHN (Recibo Honorarios)
