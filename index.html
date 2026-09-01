@@ -6,8 +6,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.7.15.1">
-<meta name="revised" content="2026-07-15">
+<meta name="version" content="1.9.1.1">
+<meta name="revised" content="2026-09-01">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Analizador XML · Amazonía</title>
@@ -1288,6 +1288,22 @@ function extraerPlaca(root) {
     // Si el texto completo limpio coincide con alguna flota registrada
     const cleanedFull = cleanPlaca(text);
     if (FLOTA_TOTAL.has(cleanedFull)) return cleanedFull;
+  }
+
+  // ── Estrategia 1.65: <CustomText><Text name="REFERENCIA..."> (extensión Ransa) ──
+  // Ransa (venta itinerante) coloca la placa dentro de una nota de referencia
+  // en ext:UBLExtensions/.../CustomText, fuera del árbol UBL estándar:
+  //   <Text name="REFERENCIA2"><![CDATA[PLACA VEHICULAR N°CID-892]]></Text>
+  // El símbolo "°" a veces llega mal codificado (mojibake UTF-8→Latin1) como "Â°",
+  // por eso la clase de caracteres admite "°", "º", "ª" y "Â" indistintamente.
+  for (const node of findAllByLocal(root, 'Text')) {
+    const text = (node.textContent || '').trim();
+    if (!text || !text.toUpperCase().includes('PLACA')) continue;
+    const m = text.match(/PLACA(?:\s*VEHICULAR)?[:\s-]*N?[°ºªÂ]*[:\s-]*([A-Z0-9-]{5,9})/i);
+    if (m) {
+      const c = cleanPlaca(m[1]);
+      if (esCandidatoPlaca(c)) return c;
+    }
   }
 
   const cachedAdditionalItemProperties = findAllByLocal(root, 'AdditionalItemProperty');
