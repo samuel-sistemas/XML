@@ -6,8 +6,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="version" content="1.9.1.1">
-<meta name="revised" content="2026-09-01">
+<meta name="version" content="1.9.3.1">
+<meta name="revised" content="2026-09-03">
 <meta name="author" content="Samuel Gonzales V- leumania@gmail.com">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Analizador XML · Amazonía</title>
@@ -1297,6 +1297,20 @@ function extraerPlaca(root) {
   // El símbolo "°" a veces llega mal codificado (mojibake UTF-8→Latin1) como "Â°",
   // por eso la clase de caracteres admite "°", "º", "ª" y "Â" indistintamente.
   for (const node of findAllByLocal(root, 'Text')) {
+    const text = (node.textContent || '').trim();
+    if (!text || !text.toUpperCase().includes('PLACA')) continue;
+    const m = text.match(/PLACA(?:\s*VEHICULAR)?[:\s-]*N?[°ºªÂ]*[:\s-]*([A-Z0-9-]{5,9})/i);
+    if (m) {
+      const c = cleanPlaca(m[1]);
+      if (esCandidatoPlaca(c)) return c;
+    }
+  }
+
+  // ── Estrategia 1.7: <cac:Item><cbc:Description> (servicios sobre el vehículo) ──
+  // Facturas de trámites/servicios vehiculares (ej. modificación de datos SUNAT)
+  // no traen un campo de placa dedicado: la mencionan dentro de la glosa del ítem:
+  //   <cbc:Description>POR MODIFICACION DE DATOS AL VEHICULO DE PLACA: F2R-992</cbc:Description>
+  for (const node of findAllByLocal(root, 'Description')) {
     const text = (node.textContent || '').trim();
     if (!text || !text.toUpperCase().includes('PLACA')) continue;
     const m = text.match(/PLACA(?:\s*VEHICULAR)?[:\s-]*N?[°ºªÂ]*[:\s-]*([A-Z0-9-]{5,9})/i);
